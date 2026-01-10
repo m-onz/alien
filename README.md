@@ -4,7 +4,7 @@
 
 ## About
 
-An audio visual toolkit for live coding in Pure Data and GEM. The primary core of alien is the alien pure data external which is a live coding Pure Data external that produces sequences for `else/sequencer`. Based on my earlier algorithmic experiments (for example mixtape and check my github) the patterns accepted by else/sequencer: - - 2 3 - - 4 (hyphens and numbers) that are sequenced via a metro are sufficient for any complex piece of audio or visual algorithmic output. These patterns can be fed to to any parameter, audio or visual object or sub patch and it serves as the primary algorithmic mechanism within this system.
+An audio visual toolkit for live coding in Pure Data and GEM. The primary core of alien is the alien pure data external which produces sequences for `else/sequencer`. Based on my earlier algorithmic experiments (for example mixtape and check my github) the patterns accepted by else/sequencer: - - 2 3 - - 4 (hyphens and numbers) that are sequenced via a metro are sufficient for any complex piece of audio or visual algorithmic output. These patterns can be fed to to any parameter, audio or visual object or sub patch and it serves as the primary algorithmic mechanism within this system.
 
 ## Features
 
