@@ -127,4 +127,4 @@ MIT License - see LICENSE file for details.
 
 Pattern language design inspired by TidalCycles, SuperCollider, and live coding communities.
 
-The alien pattern DSL is a lisp like syntax and alien is named after the Lisp alien mascot from [lisp](https://lispers.org/)
+The alien pattern DSL is a lisp like syntax and alien is named after the [lisp alien mascot](https://lispers.org/)
