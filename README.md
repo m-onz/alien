@@ -105,7 +105,7 @@ The alien pattern language provides 39+ operators organized into categories:
 
 ## Contributing
 
-I really want people to try compiling this on windows and different linux OS and report bugs and errors or contribute patches.
+This has only been tested on a recent mac, if you have any trouble compiling this on windows and different linux OS please submit a bug report or patch.
 
 To add new operators to the alien DSL:
 
