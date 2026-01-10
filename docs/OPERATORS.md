@@ -4,18 +4,16 @@ A comprehensive pattern generator for Pure Data with 39+ operators for live codi
 
 ## Installation
 
-### Pure Data External
+### Build from Source
 ```bash
-make alien
-# Install to Pd externals directory:
-make install
-```
+# Build everything (PD external + CLI tool)
+make
 
-### Standalone CLI Tool
-```bash
-make seqgen
-./seqgen --test              # Run tests
-./seqgen "(euclid 5 8)"      # Generate pattern
+# Run tests
+make test
+
+# Install Pure Data external
+make install
 ```
 
 ## Usage
@@ -31,10 +29,13 @@ make seqgen
 
 ### Command Line
 ```bash
-./seqgen "(euclid 5 8)"
+./alien_parser "(euclid 5 8)"
 # Output: - 1 - 1 1 - 1 1
 
-echo "(interleave (euclid 3 8) (range 60 67))" | ./seqgen
+echo "(interleave (euclid 3 8) (range 60 67))" | ./alien_parser
+
+# Run test suite
+./alien_parser --test
 ```
 
 ## Operator Reference
@@ -171,7 +172,7 @@ Pattern mode - distribute sequence values euclideanly:
 (filter (seq 1 - 2 - 3))       → 1 2 3
 ```
 
-### Randomness & Probability (4)
+### Randomness & Probability (5)
 
 **`choose`** - Randomly pick one argument
 ```
@@ -331,20 +332,19 @@ Direction: 0=up, 1=down, 2=updown
 
 To add new operators:
 
-1. Add `NODE_XXX` to `NodeType` enum (alien.c:44)
-2. Implement `eval_xxx()` function
-3. Add to parser switch statement (alien.c:496)
-4. Add test cases (seqgen.c for standalone)
+1. Add `NODE_XXX` to `NodeType` enum in `alien_core.h`
+2. Implement `eval_xxx()` function in `alien_core.h`
+3. Add to parser switch statement in `alien_core.h`
+4. Add test cases to `alien_parser.c`
 5. Document here
 
-## Files
+## Architecture
 
-- `alien.c` - Pure Data external source
-- `alien.pd_darwin` - Compiled PD external (macOS)
-- `alien-help.pd` - Pure Data help patch
-- `seqgen.c` - Standalone CLI version
-- `seqgen` - Compiled CLI tool
-- `ALIEN-README.md` - This file
+- `alien_core.h` - Shared pattern language implementation
+- `alien.c` - Pure Data external (uses alien_core.h)
+- `alien_parser.c` - Standalone CLI tool (uses alien_core.h)
+- `examples/alien-help.pd` - Pure Data help patch
+- `docs/OPERATORS.md` - This file
 
 ## Credits
 
