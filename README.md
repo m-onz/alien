@@ -30,9 +30,17 @@ make
 # Run tests
 make test
 
-# Install Pure Data external
+# Install Pure Data external (default location)
 make install
+
+# Install to custom directory
+make install PREFIX=/path/to/pd-externals
 ```
+
+**Default Installation Paths:**
+- **macOS**: `~/Documents/Pd/externals/alien`
+- **Linux**: `~/.local/lib/pd/extra/alien`
+- **Windows**: `%APPDATA%/Pd/alien`
 
 ## Quick Start
 

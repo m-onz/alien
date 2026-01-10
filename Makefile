@@ -1,25 +1,36 @@
 # Makefile for alien - Lisp pattern language for Pure Data
 # Builds both Pure Data external and standalone CLI tool
 
+# Allow user to override installation directory
+# Usage: make install PREFIX=/custom/path
+PREFIX ?=
+
 # Platform detection
 UNAME := $(shell uname -s)
 ifeq ($(UNAME),Darwin)
     EXT = pd_darwin
     ARCH_FLAGS = -arch x86_64 -arch arm64
     LDFLAGS = -bundle -undefined dynamic_lookup
-    PD_EXTERNALS_DIR = ~/Documents/Pd/externals
+    DEFAULT_PD_DIR = ~/Documents/Pd/externals
 endif
 ifeq ($(UNAME),Linux)
     EXT = pd_linux
     ARCH_FLAGS = -fPIC
     LDFLAGS = -shared
-    PD_EXTERNALS_DIR = ~/.local/lib/pd/extra
+    DEFAULT_PD_DIR = ~/.local/lib/pd/extra
 endif
 ifeq ($(OS),Windows_NT)
     EXT = dll
     ARCH_FLAGS =
     LDFLAGS = -shared
-    PD_EXTERNALS_DIR = $(APPDATA)/Pd
+    DEFAULT_PD_DIR = $(APPDATA)/Pd
+endif
+
+# Use PREFIX if set, otherwise use default
+ifeq ($(PREFIX),)
+    PD_EXTERNALS_DIR = $(DEFAULT_PD_DIR)
+else
+    PD_EXTERNALS_DIR = $(PREFIX)
 endif
 
 # Compiler and flags
@@ -51,7 +62,13 @@ test: alien_parser
 install: alien.$(EXT)
 	mkdir -p $(PD_EXTERNALS_DIR)/alien
 	cp alien.$(EXT) $(PD_EXTERNALS_DIR)/alien/
-	cp examples/alien-help.pd $(PD_EXTERNALS_DIR)/alien/
+	@if [ -f examples/alien-help.pd ]; then \
+		cp examples/alien-help.pd $(PD_EXTERNALS_DIR)/alien/; \
+	elif [ -f alien-help.pd ]; then \
+		cp alien-help.pd $(PD_EXTERNALS_DIR)/alien/; \
+	else \
+		echo "Warning: alien-help.pd not found, skipping"; \
+	fi
 	@echo "Installed to $(PD_EXTERNALS_DIR)/alien"
 
 # Clean build artifacts
@@ -69,6 +86,11 @@ help:
 	@echo "  make test         - Run test suite"
 	@echo "  make install      - Install PD external to $(PD_EXTERNALS_DIR)"
 	@echo "  make clean        - Remove build artifacts"
+	@echo ""
+	@echo "Installation Options:"
+	@echo "  PREFIX=/path      - Custom installation directory"
+	@echo "  Example: make install PREFIX=~/.pd-externals"
+	@echo "  Default: $(DEFAULT_PD_DIR)"
 	@echo ""
 	@echo "CLI Usage:"
 	@echo "  ./alien_parser '(euclid 5 8)'"
