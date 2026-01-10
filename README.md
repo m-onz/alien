@@ -24,7 +24,7 @@ Pure Data (GEM) is my weapon of choice and it has never let me down. I know you 
 
 * **Pattern Language External** - A Pure Data external (`[alien]`) implementing a Lisp-like pattern language with 39+ operators
 * **Standalone CLI Tool** - `alien_parser` for testing patterns outside of Pure Data
-* **Example Patches** - Starter patches showing audio visual setups
+* **Example Patches** - Starter patches showing audio visual setups (COMING SOON)
 * **Comprehensive Documentation** - Full operator reference with examples
 
 ## Installation
