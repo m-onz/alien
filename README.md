@@ -1,24 +1,16 @@
 # alien 👽
 
-An audio visual toolkit for live coding in Pure Data and GEM.
-
 ![alien](/alien.png)
 
 ## About
 
-alien is a live coding Pure Data external that produces sequences for `else/sequencer` and other PD objects.
+An audio visual toolkit for live coding in Pure Data and GEM. The primary core of alien is the alien pure data external which is a live coding Pure Data external that produces sequences for `else/sequencer` and other PD objects.
 
-Based around a Lisp-like syntax, the mascot of Lisp is the [lisp alien](https://lispers.org/), so I decided to call my AV framework: "alien".
+These patterns can be fed to to any parameter, audio or visual object or sub patch and it serves as the primary algorithmic mechanism within the system.
+
+Alien is has a Lisp-like syntax, the mascot of Lisp is the [lisp alien](https://lispers.org/), so I decided to call my AV framework: "alien".
 
 There are very few live coding or algorithmic music or visual systems. Typically you will get a purpose-built system for audio or visuals. Very few libraries, frameworks or solutions address the challenging problem of making audio visual performances.
-
-## Pure Data + GEM
-
-Pure Data (GEM) is my weapon of choice and it has never let me down. I know you can get better support for shaders with Touch Designer, and Tidal Cycles and SuperCollider have more flexible and powerful audio engines. However, for an audio visual platform, Pure Data and GEM has many advantages over commercial or open source alternatives:
-
-* Everything runs in the same context - no client/server OSC latency
-* It's old, doesn't change, and can be extended
-* It's easy to install on any device
 
 ## Features
 
@@ -112,32 +104,6 @@ The alien pattern language provides 39+ operators organized into categories:
 (delay (arp (chord 60 0) 0 8) 4)
 → - - - - 60 64 67 60 64 67 60 64
 ```
-
-See [`docs/OPERATORS.md`](docs/OPERATORS.md) for complete operator reference.
-
-## Project Structure
-
-```
-alien/
-├── alien.c              - Pure Data external (uses alien_core.h)
-├── alien_parser.c       - Standalone CLI tool (uses alien_core.h)
-├── alien_core.h         - Shared pattern language implementation
-├── Makefile             - Build system
-├── README.md            - This file
-├── LICENSE              - MIT License
-├── examples/
-│   └── alien-help.pd    - Pure Data help patch
-└── docs/
-    └── OPERATORS.md     - Complete operator reference
-```
-
-## Project Aims
-
-To create an audio visual framework for Pure Data and GEM with batteries included. Supporting algorithmic live coding for audio visuals, shaders and more.
-
-The main challenge with getting started with Pure Data and GEM is battling with the different options, so alien will provide starter patches as a starting point for experimentation. These patches will be completely flexible to incorporate other externals/libraries and approaches.
-
-If you don't want to spend your time inventing a live coding or algorithmic paradigm and just want to make cool audio visual performances, alien presents a viable approach that has been years in the making.
 
 ## Contributing
 
