@@ -8,8 +8,6 @@ An audio visual toolkit for live coding in Pure Data and GEM. The primary core o
 
 These patterns can be fed to to any parameter, audio or visual object or sub patch and it serves as the primary algorithmic mechanism within the system.
 
-Alien is has a Lisp-like syntax, the mascot of Lisp is the [lisp alien](https://lispers.org/), so I decided to call my AV framework: "alien".
-
 There are very few live coding or algorithmic music or visual systems. Typically you will get a purpose-built system for audio or visuals. Very few libraries, frameworks or solutions address the challenging problem of making audio visual performances.
 
 ## Features
@@ -94,15 +92,15 @@ The alien pattern language provides 39+ operators organized into categories:
 ```lisp
 ; Euclidean rhythm with notes
 (euclid (seq 60 64 67) 8)
-→ - - 60 - - 64 - 67
+// - - 60 - - 64 - 67
 
 ; Random walk quantized to C major scale
 (quantize (drunk 8 3 60) (seq 60 62 64 65 67 69 71 72))
-→ 60 62 64 62 65 67 69 67
+// 60 62 64 62 65 67 69 67
 
 ; Arpeggio with delay
 (delay (arp (chord 60 0) 0 8) 4)
-→ - - - - 60 64 67 60 64 67 60 64
+// - - - - 60 64 67 60 64 67 60 64
 ```
 
 ## Contributing
@@ -125,4 +123,4 @@ MIT License - see LICENSE file for details.
 
 Pattern language design inspired by TidalCycles, SuperCollider, and live coding communities.
 
-The Lisp alien mascot is from [lispers.org](https://lispers.org/)
+The alien pattern DSL is a lisp like syntax and alien is named after the Lisp alien mascot from [lisp](https://lispers.org/)
