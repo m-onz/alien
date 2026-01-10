@@ -64,7 +64,7 @@ Create a new patch and use the `[alien]` object:
 
 Output: `- 1 - 1 1 - 1 1`
 
-See `examples/alien-help.pd` for a comprehensive help patch.
+See `alien-help.pd` for a comprehensive help patch.
 
 ### Command Line
 
