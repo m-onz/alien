@@ -18,7 +18,8 @@ An audio visual toolkit for live coding in Pure Data and GEM. The primary core o
 ### Requirements
 
 * [Pure Data](http://msp.ucsd.edu/software.html) (tested with Pd-0.56-1)
-* [pd-else](https://github.com/porres/pd-else) - Required external library
+* [pd-else](https://github.com/porres/pd-else) - Via deken - or install from source if you see any broken externals
+* freeverb~ - Install via deken (pure data package manager)
 * C compiler (gcc, clang) for building from source
 
 ### Build from Source
