@@ -44,11 +44,14 @@ CLI_CFLAGS = -Wall -Wextra -std=c99 -O2
 # Build targets
 .PHONY: all clean install test help
 
-all: alien.$(EXT) alien_parser
+all: alien.$(EXT) alien_router.$(EXT) alien_parser
 
-# Pure Data external
+# Pure Data externals
 alien.$(EXT): alien.c alien_core.h
 	$(CC) $(PD_CFLAGS) -o $@ alien.c $(LDFLAGS) -lm
+
+alien_router.$(EXT): alien_router.c
+	$(CC) $(PD_CFLAGS) -o $@ alien_router.c $(LDFLAGS)
 
 # Standalone CLI tool
 alien_parser: alien_parser.c alien_core.h
@@ -58,10 +61,11 @@ alien_parser: alien_parser.c alien_core.h
 test: alien_parser
 	./alien_parser --test
 
-# Install Pure Data external
-install: alien.$(EXT)
+# Install Pure Data externals
+install: alien.$(EXT) alien_router.$(EXT)
 	mkdir -p $(PD_EXTERNALS_DIR)/alien
 	cp alien.$(EXT) $(PD_EXTERNALS_DIR)/alien/
+	cp alien_router.$(EXT) $(PD_EXTERNALS_DIR)/alien/
 	@if [ -f examples/alien-help.pd ]; then \
 		cp examples/alien-help.pd $(PD_EXTERNALS_DIR)/alien/; \
 	elif [ -f alien-help.pd ]; then \
@@ -69,11 +73,14 @@ install: alien.$(EXT)
 	else \
 		echo "Warning: alien-help.pd not found, skipping"; \
 	fi
+	@if [ -f alien_router-help.pd ]; then \
+		cp alien_router-help.pd $(PD_EXTERNALS_DIR)/alien/; \
+	fi
 	@echo "Installed to $(PD_EXTERNALS_DIR)/alien"
 
 # Clean build artifacts
 clean:
-	rm -f alien.$(EXT) alien_parser *.o
+	rm -f alien.$(EXT) alien_router.$(EXT) alien_parser *.o
 
 # Help
 help:
