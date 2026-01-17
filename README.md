@@ -8,7 +8,7 @@ An audio visual toolkit for live coding in Pure Data and GEM. The primary core o
 
 ## Audio visuals
 
-This is an audio visual toolkit that supports audio visual live coding but also parameterized algorithmic performance. Whereby the patterns have been specified ahead of time and mapped as parameters for control via a MIDI instrument or keyboard. I personally think both approaches have their merits and they are ont mutually exclusive.
+This is an audio visual toolkit that supports audio visual live coding but also parameterized algorithmic performance. Whereby the patterns have been specified ahead of time and mapped as parameters for control via a MIDI instrument or keyboard. I personally think both approaches have their merits and they are not mutually exclusive.
 
 The issue with audio visual live coding is the ranges of numbers useful in music are not the same as in visuals. A co-ordinate system and movement of objects in 2D or 3D space requires numbers with a larger range than MIDI or rhythmic patterns. It is necessary to do mapping between these two spaces ahead of time or to future proof your abstractions with flexible internal mappings.
 
