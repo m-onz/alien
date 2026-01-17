@@ -6,11 +6,26 @@
 
 An audio visual toolkit for live coding in Pure Data and GEM. The primary core of alien is the alien pure data external which produces sequences for `else/sequencer`. Based on my earlier algorithmic experiments (for example mixtape and check my github) the patterns accepted by else/sequencer: - - 2 3 - - 4 (hyphens and numbers) that are sequenced via a metro are sufficient for any complex piece of audio or visual algorithmic output. These patterns can be fed to to any parameter, audio or visual object or sub patch and it serves as the primary algorithmic mechanism within this system.
 
+## Audio visuals
+
+This is an audio visual toolkit that supports audio visual live coding but also parameterized algorithmic performance. Whereby the patterns have been specified ahead of time and mapped as parameters for control via a MIDI instrument or keyboard. I personally think both approaches have their merits and they are ont mutually exclusive.
+
+The issue with audio visual live coding is the ranges of numbers useful in music are not the same as in visuals. A co-ordinate system and movement of objects in 2D or 3D space requires numbers with a larger range than MIDI or rhythmic patterns. It is necessary to do mapping between these two spaces ahead of time or to future proof your abstractions with flexible internal mappings.
+
+## Objects
+
+* alien
+* alien_router
+* alien_monosynth~
+* alien_monosynth2~
+* video
+* playdir~
+
 ## Features
 
 * **Pattern Language External** - A Pure Data external (`[alien]`) implementing a Lisp-like pattern language with 39+ operators
 * **Standalone CLI Tool** - `alien_parser` for testing patterns outside of Pure Data
-* **Example Patches** - Starter patches showing audio visual setups (COMING SOON)
+* **Example Patches** - Starter patches showing audio visual setups
 * **Comprehensive Documentation** - Full operator reference with examples
 
 ## Installation
