@@ -6,7 +6,7 @@
 #X obj 152 134 openpanel;
 #X msg 152 153 open \$1 RGBA;
 #X msg 83 111 auto \$1;
-#N canvas 54 114 970 659 video 1;
+#N canvas 54 114 970 659 video 0;
 #X obj 327 179 pdcontrol;
 #X msg 327 156 dir;
 #X obj 327 137 bng 15 250 50 0 empty empty empty 17 7 0 10 #fcfcfc #000000 #000000;
@@ -90,6 +90,8 @@
 #X msg 82 389 fill \$1;
 #X obj 82 371 tgl 15 0 empty empty empty 0 -6 0 8 #fcfcfc #000000 #000000 0 1;
 #X obj 307 19 inlet;
+#X obj 43 442 translate 0 0 -11;
+#X obj 332 474 outlet;
 #X connect 0 0 9 0;
 #X connect 0 2 22 0;
 #X connect 1 0 2 0;
@@ -100,7 +102,7 @@
 #X connect 7 0 8 0;
 #X connect 7 1 20 0;
 #X connect 8 0 0 0;
-#X connect 9 0 1 0;
+#X connect 9 0 31 0;
 #X connect 10 0 9 1;
 #X connect 11 0 3 0;
 #X connect 12 0 7 0;
@@ -120,3 +122,4 @@
 #X connect 28 0 23 0;
 #X connect 29 0 28 0;
 #X connect 30 0 0 1;
+#X connect 31 0 32 0;
