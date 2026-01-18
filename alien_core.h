@@ -12,10 +12,18 @@
 #ifndef ALIEN_CORE_H
 #define ALIEN_CORE_H
 
+// Version information
+#define ALIEN_VERSION_MAJOR 0
+#define ALIEN_VERSION_MINOR 2
+#define ALIEN_VERSION_PATCH 0
+#define ALIEN_VERSION_STRING "0.2.0"
+
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <limits.h>
 #include <time.h>
 #include <math.h>
 
@@ -49,11 +57,14 @@ typedef enum {
     TOK_EOF
 } TokenType;
 
+// Maximum symbol length (operator names, etc.)
+#define ALIEN_MAX_SYMBOL_LEN 128
+
 typedef struct {
     TokenType type;
     union {
         int number;
-        char symbol[64];
+        char symbol[ALIEN_MAX_SYMBOL_LEN];
     } value;
     int line;
     int column;
@@ -163,6 +174,9 @@ static int random_range(int min, int max) {
 // SEQUENCE OPERATIONS
 // ============================================================================
 
+// Forward declaration
+static void seq_free(Sequence *seq);
+
 static Sequence* seq_new(void) {
     Sequence *seq = (Sequence*)ALIEN_MALLOC(sizeof(Sequence));
     if (!seq) return NULL;
@@ -199,9 +213,13 @@ static bool seq_extend(Sequence *dest, Sequence *src) {
 }
 
 static Sequence* seq_copy(Sequence *src) {
+    if (!src) return NULL;
     Sequence *copy = seq_new();
     if (!copy) return NULL;
-    seq_extend(copy, src);
+    if (!seq_extend(copy, src)) {
+        seq_free(copy);
+        return NULL;
+    }
     return copy;
 }
 
@@ -237,25 +255,77 @@ static void euclidean_rhythm(int hits, int steps, int *pattern) {
     }
 }
 
+// Proper Bjorklund algorithm implementation using Euclidean distribution
+// Based on "The Euclidean Algorithm Generates Traditional Musical Rhythms" by Toussaint
 static void bjorklund_rhythm(int hits, int steps, int *pattern) {
+    if (steps <= 0) return;
     if (hits >= steps) {
         for (int i = 0; i < steps; i++) pattern[i] = 1;
         return;
     }
-    if (hits == 0) {
+    if (hits <= 0) {
         for (int i = 0; i < steps; i++) pattern[i] = 0;
         return;
     }
-    int spacing = steps / hits;
-    int remainder = steps % hits;
-    int pos = 0;
-    for (int i = 0; i < steps; i++) pattern[i] = 0;
+
+    // Initialize groups: 'hits' groups of [1] and 'rests' groups of [0]
+    int rests = steps - hits;
+
+    // Use temporary arrays for the algorithm
+    // Each "group" is stored as a sequence of bits
+    // We'll use a 2D approach with fixed max size
+    #define MAX_BJORK_STEPS 256
+    int groups[MAX_BJORK_STEPS][MAX_BJORK_STEPS];
+    int group_lens[MAX_BJORK_STEPS];
+    int num_groups = steps;
+
+    // Initialize: first 'hits' groups are [1], rest are [0]
     for (int i = 0; i < hits; i++) {
-        pattern[pos] = 1;
-        pos += spacing;
-        if (i < remainder) pos++;
-        if (pos >= steps) pos = pos % steps;
+        groups[i][0] = 1;
+        group_lens[i] = 1;
     }
+    for (int i = hits; i < steps; i++) {
+        groups[i][0] = 0;
+        group_lens[i] = 1;
+    }
+
+    // Bjorklund's algorithm: repeatedly distribute remainder groups
+    int num_ones = hits;
+    int num_zeros = rests;
+
+    while (num_zeros > 1) {
+        int distribute = (num_ones < num_zeros) ? num_ones : num_zeros;
+
+        // Append each of the last 'distribute' groups to the first 'distribute' groups
+        for (int i = 0; i < distribute; i++) {
+            int src_idx = num_ones + num_zeros - 1 - i;
+            int dst_idx = i;
+            // Append groups[src_idx] to groups[dst_idx]
+            for (int j = 0; j < group_lens[src_idx]; j++) {
+                groups[dst_idx][group_lens[dst_idx]++] = groups[src_idx][j];
+            }
+        }
+
+        // Update counts
+        if (num_ones < num_zeros) {
+            num_zeros = num_zeros - num_ones;
+            // num_ones stays the same
+        } else {
+            int temp = num_zeros;
+            num_zeros = num_ones - num_zeros;
+            num_ones = temp;
+        }
+        num_groups = num_ones + num_zeros;
+    }
+
+    // Flatten the groups into the output pattern
+    int pos = 0;
+    for (int i = 0; i < num_groups && pos < steps; i++) {
+        for (int j = 0; j < group_lens[i] && pos < steps; j++) {
+            pattern[pos++] = groups[i][j];
+        }
+    }
+    #undef MAX_BJORK_STEPS
 }
 
 // ============================================================================
@@ -291,20 +361,31 @@ static int tokenize(const char *input, Token *tokens, int max_tokens) {
             p++; column++;
         } else if (isdigit(*p)) {
             tok->type = TOK_NUMBER;
-            int num = 0;
+            long num = 0;
             while (isdigit(*p)) {
-                num = num * 10 + (*p - '0');
+                long digit = *p - '0';
+                // Overflow check: ensure num * 10 + digit <= INT_MAX
+                if (num > (INT_MAX - digit) / 10) {
+                    set_error("Number too large (overflow)");
+                    return -1;
+                }
+                num = num * 10 + digit;
                 p++; column++;
             }
-            tok->value.number = num;
+            tok->value.number = (int)num;
         } else if (isalpha(*p)) {
             tok->type = TOK_SYMBOL;
             int i = 0;
-            while ((isalpha(*p) || isdigit(*p)) && i < 63) {
+            while ((isalpha(*p) || isdigit(*p)) && i < ALIEN_MAX_SYMBOL_LEN - 1) {
                 tok->value.symbol[i++] = *p++;
                 column++;
             }
             tok->value.symbol[i] = '\0';
+            // Check if symbol was truncated
+            if (isalpha(*p) || isdigit(*p)) {
+                set_error("Symbol too long (truncated)");
+                return -1;
+            }
         } else {
             set_error("Invalid character");
             return -1;
@@ -997,7 +1078,8 @@ static Sequence* eval_prob(ASTNode *node) {
     Sequence *result = seq_new();
     if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
-        if (random_range(0, 100) < prob) {
+        // Use 0-99 range (100 values) so prob=100 always triggers, prob=0 never triggers
+        if (random_range(0, 99) < prob) {
             if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
         } else {
             if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
@@ -1013,7 +1095,8 @@ static Sequence* eval_maybe(ASTNode *node) {
     if (!prob_seq || prob_seq->length != 1) { set_error("maybe: probability must be single number (0-100)"); seq_free(prob_seq); return NULL; }
     int prob = prob_seq->values[0];
     seq_free(prob_seq);
-    if (random_range(0, 100) < prob) {
+    // Use 0-99 range (100 values) so prob=100 always triggers, prob=0 never triggers
+    if (random_range(0, 99) < prob) {
         return eval_node(node->data.op.children[0]);
     } else {
         return eval_node(node->data.op.children[1]);
@@ -1146,7 +1229,8 @@ static Sequence* eval_degrade(ASTNode *node) {
     Sequence *result = seq_new();
     if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
-        if (random_range(0, 100) >= prob) {
+        // Use 0-99 range (100 values) so prob=100 always degrades, prob=0 never degrades
+        if (random_range(0, 99) >= prob) {
             if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
         } else {
             if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }

@@ -136,8 +136,8 @@ TestCase tests[] = {
     // Edge case tests
     {"(scale (seq 1 2 3) 0 0 0 10)", NULL, "scale with zero range (error)"},
     {"(arp (seq 60) 2 5)", "60 60 60 60 60", "arp single note up-down"},
-    {"(range 5 1)", "", "range descending without step"},
-    {"(range 5 1 -1)", NULL, "range descending with negative step (unsupported)"},
+    {"(range 5 1)", "", "range descending without step (needs explicit negative step)"},
+    {"(range 5 1 -1)", NULL, "range with -1 fails (hyphen parsed separately)"},
     {"(cycle (seq) 5)", "", "cycle empty sequence"},
     {"(take (seq 1 2 3) 0)", "", "take zero elements"},
     {"(drop (seq 1 2 3) 10)", "", "drop more than length"},
@@ -219,6 +219,12 @@ char* read_stdin(void) {
 }
 
 int main(int argc, char **argv) {
+    // Check for version flag
+    if (argc > 1 && (strcmp(argv[1], "--version") == 0 || strcmp(argv[1], "-v") == 0)) {
+        printf("alien_parser %s\n", ALIEN_VERSION_STRING);
+        return 0;
+    }
+
     // Check for test mode
     if (argc > 1 && strcmp(argv[1], "--test") == 0) {
         run_tests();

@@ -7,7 +7,7 @@
  * Output: list of numbers and hyphens (hyphens output as -1)
  */
 
-#define PD  // Enable Pure Data memory functions in alien_core.h
+// PD is defined by the Makefile (-DPD), which enables Pure Data memory functions in alien_core.h
 #include "alien_core.h"
 
 static t_class *alien_class;
@@ -21,21 +21,28 @@ typedef struct _alien {
 // PURE DATA INTERFACE
 // ============================================================================
 
+// Maximum sizes for input processing
+#define ALIEN_MAX_INPUT 16384
+#define ALIEN_MAX_TOKENS 4096
+
 static void alien_anything(t_alien *x, t_symbol *s, int argc, t_atom *argv) {
     // Concatenate all atoms into a single string
-    char input[4096];
+    char input[ALIEN_MAX_INPUT];
     char *p = input;
     size_t remaining = sizeof(input) - 1;
+    int truncated = 0;
 
     // Add the selector (first symbol)
     int len = snprintf(p, remaining, "%s", s->s_name);
-    if (len > 0) {
+    if (len > 0 && (size_t)len < remaining) {
         p += len;
         remaining -= len;
+    } else if (len > 0) {
+        truncated = 1;
     }
 
     // Add all arguments
-    for (int i = 0; i < argc && remaining > 1; i++) {
+    for (int i = 0; i < argc && remaining > 1 && !truncated; i++) {
         if (argv[i].a_type == A_FLOAT) {
             // Check if it's an integer
             float f = atom_getfloat(&argv[i]);
@@ -50,16 +57,22 @@ static void alien_anything(t_alien *x, t_symbol *s, int argc, t_atom *argv) {
             continue;
         }
 
-        if (len > 0) {
+        if (len > 0 && (size_t)len < remaining) {
             p += len;
             remaining -= len;
+        } else if (len > 0) {
+            truncated = 1;
         }
     }
     *p = '\0';
 
+    if (truncated) {
+        pd_error(x, "alien: input truncated (max %d chars)", ALIEN_MAX_INPUT);
+    }
+
     // Tokenize
-    Token tokens[1024];
-    int token_count = tokenize(input, tokens, 1024);
+    Token tokens[ALIEN_MAX_TOKENS];
+    int token_count = tokenize(input, tokens, ALIEN_MAX_TOKENS);
     if (token_count < 0) {
         pd_error(x, "alien: %s", g_error_message);
         return;
@@ -112,4 +125,5 @@ void alien_setup(void) {
         CLASS_DEFAULT,
         0);
     class_addanything(alien_class, alien_anything);
+    post("alien %s - lisp-like pattern language", ALIEN_VERSION_STRING);
 }

@@ -11,7 +11,7 @@
 #X text 529 -500 be careful with your ears;
 #X obj 99 -549 r tempo;
 #X obj 38 -634 declare -lib ./instruments -path ./instruments;
-#N canvas 640 76 1300 733 visuals 1;
+#N canvas 640 76 1300 733 visuals 0;
 #X text 123 50 I can crash Pd if I delete GEM objects without having a GEM window open FYI;
 #N canvas 339 345 450 300 puzzle_effect 0;
 #X obj 42 173 outlet;

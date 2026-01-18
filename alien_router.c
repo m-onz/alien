@@ -19,6 +19,7 @@
  */
 
 #include "m_pd.h"
+#include "alien_core.h"
 #include <string.h>
 
 static t_class *alien_router_class;
@@ -73,6 +74,7 @@ static void alien_router_anything(t_alien_router *x, t_symbol *s, int argc, t_at
 // ============================================================================
 
 static void *alien_router_new(t_symbol *s, int argc, t_atom *argv) {
+    (void)s;  // unused parameter (required by Pd API)
     t_alien_router *x = (t_alien_router *)pd_new(alien_router_class);
 
     // Store the number of routing symbols
@@ -135,4 +137,5 @@ void alien_router_setup(void) {
         A_GIMME,
         0);
     class_addanything(alien_router_class, alien_router_anything);
+    post("alien_router %s - pattern message router", ALIEN_VERSION_STRING);
 }
