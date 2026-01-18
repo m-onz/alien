@@ -12,6 +12,10 @@ This is an audio visual toolkit that supports audio visual live coding but also 
 
 The issue with audio visual live coding is the ranges of numbers useful in music are not the same as in visuals. A co-ordinate system and movement of objects in 2D or 3D space requires numbers with a larger range than MIDI or rhythmic patterns. It is necessary to do mapping between these two spaces ahead of time or to future proof your abstractions with flexible internal mappings.
 
+## Technical notes 
+
+You will probably need to increase the delay in microseconds to 256 or higher and the block size to 1024 in the audio preferences to stop the visuals from glitching the audio in some cases (this may work better using an external sound card). It's possible to crash Pd if you try to delete a GEM object without a GEM window on a mac.
+
 ## Objects
 
 * alien
