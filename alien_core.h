@@ -15,8 +15,8 @@
 // Version information
 #define ALIEN_VERSION_MAJOR 0
 #define ALIEN_VERSION_MINOR 2
-#define ALIEN_VERSION_PATCH 0
-#define ALIEN_VERSION_STRING "0.2.0"
+#define ALIEN_VERSION_PATCH 1
+#define ALIEN_VERSION_STRING "0.2.1"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -825,6 +825,8 @@ static Sequence* eval_bjork(ASTNode *node) {
     int hits = hits_seq->values[0];
     int steps = steps_seq->values[0];
     seq_free(hits_seq); seq_free(steps_seq);
+    if (steps > 256) { set_error("bjork: max 256 steps"); return NULL; }
+    if (steps <= 0) { set_error("bjork: steps must be positive"); return NULL; }
     int *pattern = (int*)ALIEN_MALLOC(sizeof(int) * steps);
     if (!pattern) return NULL;
     bjorklund_rhythm(hits, steps, pattern);
