@@ -133,6 +133,16 @@ TestCase tests[] = {
     {"(seq 1 2", NULL, "unclosed parenthesis"},
     {"(unknown 1 2)", NULL, "unknown operator"},
 
+    // Edge case tests
+    {"(scale (seq 1 2 3) 0 0 0 10)", NULL, "scale with zero range (error)"},
+    {"(arp (seq 60) 2 5)", "60 60 60 60 60", "arp single note up-down"},
+    {"(range 5 1)", "", "range descending without step"},
+    {"(range 5 1 -1)", NULL, "range descending with negative step (unsupported)"},
+    {"(cycle (seq) 5)", "", "cycle empty sequence"},
+    {"(take (seq 1 2 3) 0)", "", "take zero elements"},
+    {"(drop (seq 1 2 3) 10)", "", "drop more than length"},
+    {"(every (seq 1) 1)", "1", "every on single element"},
+
     {NULL, NULL, NULL}
 };
 

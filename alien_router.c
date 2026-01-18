@@ -79,7 +79,11 @@ static void *alien_router_new(t_symbol *s, int argc, t_atom *argv) {
     x->x_n = argc;
 
     // Allocate arrays for symbols and outlets
-    x->x_vec = (t_symbol **)getbytes(argc * sizeof(t_symbol *));
+    if (argc > 0) {
+        x->x_vec = (t_symbol **)getbytes(argc * sizeof(t_symbol *));
+    } else {
+        x->x_vec = NULL;
+    }
     x->x_outlets = (t_outlet **)getbytes((argc + 1) * sizeof(t_outlet *));
 
     // Store the routing symbols from creation arguments
@@ -112,7 +116,9 @@ static void *alien_router_new(t_symbol *s, int argc, t_atom *argv) {
 }
 
 static void alien_router_free(t_alien_router *x) {
-    freebytes(x->x_vec, x->x_n * sizeof(t_symbol *));
+    if (x->x_n > 0) {
+        freebytes(x->x_vec, x->x_n * sizeof(t_symbol *));
+    }
     freebytes(x->x_outlets, (x->x_n + 1) * sizeof(t_outlet *));
 }
 

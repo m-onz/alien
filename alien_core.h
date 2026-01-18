@@ -153,7 +153,10 @@ static void init_random(void) {
 
 static int random_range(int min, int max) {
     init_random();
-    return min + (rand() % (max - min + 1));
+    if (max < min) { int t = min; min = max; max = t; }
+    unsigned int range = (unsigned int)max - (unsigned int)min + 1;
+    if (range == 0) return min;  // overflow case: full int range
+    return min + (int)(rand() % range);
 }
 
 // ============================================================================
@@ -173,20 +176,26 @@ static Sequence* seq_new(void) {
     return seq;
 }
 
-static void seq_append(Sequence *seq, int value) {
+static bool seq_append(Sequence *seq, int value) {
     if (seq->length >= seq->capacity) {
         int old_cap = seq->capacity;
-        seq->capacity *= 2;
-        seq->values = (int*)ALIEN_REALLOC(seq->values,
-            sizeof(int) * old_cap, sizeof(int) * seq->capacity);
+        int new_cap = seq->capacity * 2;
+        if (new_cap < old_cap) return false;  // overflow check
+        int *new_values = (int*)ALIEN_REALLOC(seq->values,
+            sizeof(int) * old_cap, sizeof(int) * new_cap);
+        if (!new_values) return false;
+        seq->values = new_values;
+        seq->capacity = new_cap;
     }
     seq->values[seq->length++] = value;
+    return true;
 }
 
-static void seq_extend(Sequence *dest, Sequence *src) {
+static bool seq_extend(Sequence *dest, Sequence *src) {
     for (int i = 0; i < src->length; i++) {
-        seq_append(dest, src->values[i]);
+        if (!seq_append(dest, src->values[i])) return false;
     }
+    return true;
 }
 
 static Sequence* seq_copy(Sequence *src) {
@@ -338,14 +347,19 @@ static ASTNode* ast_new_op(NodeType type) {
     return node;
 }
 
-static void ast_add_child(ASTNode *parent, ASTNode *child) {
+static bool ast_add_child(ASTNode *parent, ASTNode *child) {
     if (parent->data.op.child_count >= parent->data.op.child_capacity) {
         int old_cap = parent->data.op.child_capacity;
-        parent->data.op.child_capacity *= 2;
-        parent->data.op.children = (ASTNode**)ALIEN_REALLOC(parent->data.op.children,
-            sizeof(ASTNode*) * old_cap, sizeof(ASTNode*) * parent->data.op.child_capacity);
+        int new_cap = parent->data.op.child_capacity * 2;
+        if (new_cap < old_cap) return false;  // overflow check
+        ASTNode **new_children = (ASTNode**)ALIEN_REALLOC(parent->data.op.children,
+            sizeof(ASTNode*) * old_cap, sizeof(ASTNode*) * new_cap);
+        if (!new_children) return false;
+        parent->data.op.children = new_children;
+        parent->data.op.child_capacity = new_cap;
     }
     parent->data.op.children[parent->data.op.child_count++] = child;
+    return true;
 }
 
 static void ast_free(ASTNode *node) {
@@ -453,7 +467,12 @@ static ASTNode* parse_list(Parser *p) {
             ast_free(node);
             return NULL;
         }
-        ast_add_child(node, child);
+        if (!ast_add_child(node, child)) {
+            set_error("Memory allocation failed");
+            ast_free(child);
+            ast_free(node);
+            return NULL;
+        }
     }
 
     parser_advance(p);
@@ -502,7 +521,7 @@ static Sequence* eval_seq(ASTNode *node) {
     for (int i = 0; i < node->data.op.child_count; i++) {
         Sequence *child = eval_node(node->data.op.children[i]);
         if (!child) { seq_free(result); return NULL; }
-        seq_extend(result, child);
+        if (!seq_extend(result, child)) { seq_free(child); seq_free(result); return NULL; }
         seq_free(child);
     }
     return result;
@@ -528,14 +547,14 @@ static Sequence* eval_rep(ASTNode *node) {
     for (int i = 0; i < count_idx; i++) {
         Sequence *child = eval_node(node->data.op.children[i]);
         if (!child) { seq_free(to_repeat); return NULL; }
-        seq_extend(to_repeat, child);
+        if (!seq_extend(to_repeat, child)) { seq_free(child); seq_free(to_repeat); return NULL; }
         seq_free(child);
     }
 
     Sequence *result = seq_new();
     if (!result) { seq_free(to_repeat); return NULL; }
     for (int i = 0; i < repeat_count; i++) {
-        seq_extend(result, to_repeat);
+        if (!seq_extend(result, to_repeat)) { seq_free(to_repeat); seq_free(result); return NULL; }
     }
     seq_free(to_repeat);
     return result;
@@ -550,8 +569,9 @@ static Sequence* eval_add(ASTNode *node) {
     int delta = delta_seq->values[0];
     seq_free(delta_seq);
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
-        seq_append(result, seq->values[i] == -1 ? -1 : seq->values[i] + delta);
+        if (!seq_append(result, seq->values[i] == -1 ? -1 : seq->values[i] + delta)) { seq_free(result); seq_free(seq); return NULL; }
     }
     seq_free(seq);
     return result;
@@ -566,8 +586,9 @@ static Sequence* eval_mul(ASTNode *node) {
     int factor = factor_seq->values[0];
     seq_free(factor_seq);
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
-        seq_append(result, seq->values[i] == -1 ? -1 : seq->values[i] * factor);
+        if (!seq_append(result, seq->values[i] == -1 ? -1 : seq->values[i] * factor)) { seq_free(result); seq_free(seq); return NULL; }
     }
     seq_free(seq);
     return result;
@@ -582,8 +603,9 @@ static Sequence* eval_mod(ASTNode *node) {
     int divisor = divisor_seq->values[0];
     seq_free(divisor_seq);
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
-        seq_append(result, seq->values[i] == -1 ? -1 : seq->values[i] % divisor);
+        if (!seq_append(result, seq->values[i] == -1 ? -1 : seq->values[i] % divisor)) { seq_free(result); seq_free(seq); return NULL; }
     }
     seq_free(seq);
     return result;
@@ -612,14 +634,20 @@ static Sequence* eval_scale(ASTNode *node) {
     int to_min = to_min_seq->values[0];
     int to_max = to_max_seq->values[0];
     seq_free(from_min_seq); seq_free(from_max_seq); seq_free(to_min_seq); seq_free(to_max_seq);
+    if (from_max == from_min) {
+        set_error("scale: from_min and from_max cannot be equal");
+        seq_free(seq);
+        return NULL;
+    }
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
         if (seq->values[i] == -1) {
-            seq_append(result, -1);
+            if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
         } else {
             double normalized = (double)(seq->values[i] - from_min) / (from_max - from_min);
             int scaled = to_min + (int)(normalized * (to_max - to_min));
-            seq_append(result, scaled);
+            if (!seq_append(result, scaled)) { seq_free(result); seq_free(seq); return NULL; }
         }
     }
     seq_free(seq);
@@ -637,14 +665,15 @@ static Sequence* eval_clamp(ASTNode *node) {
     int max_val = max_seq->values[0];
     seq_free(min_seq); seq_free(max_seq);
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
         if (seq->values[i] == -1) {
-            seq_append(result, -1);
+            if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
         } else {
             int val = seq->values[i];
             if (val < min_val) val = min_val;
             if (val > max_val) val = max_val;
-            seq_append(result, val);
+            if (!seq_append(result, val)) { seq_free(result); seq_free(seq); return NULL; }
         }
     }
     seq_free(seq);
@@ -670,7 +699,8 @@ static Sequence* eval_euclid(ASTNode *node) {
         hits = pattern_seq->values[0];
         seq_free(pattern_seq);
         pattern_seq = seq_new();
-        seq_append(pattern_seq, 1);
+        if (!pattern_seq) return NULL;
+        if (!seq_append(pattern_seq, 1)) { seq_free(pattern_seq); return NULL; }
     } else {
         hits = pattern_seq->length;
     }
@@ -684,17 +714,19 @@ static Sequence* eval_euclid(ASTNode *node) {
     }
 
     int *euclid_pattern = (int*)ALIEN_MALLOC(sizeof(int) * steps);
+    if (!euclid_pattern) { seq_free(pattern_seq); return NULL; }
     euclidean_rhythm(hits, steps, euclid_pattern);
 
     Sequence *result = seq_new();
+    if (!result) { ALIEN_FREE(euclid_pattern, sizeof(int) * steps); seq_free(pattern_seq); return NULL; }
     int pattern_idx = 0;
     for (int i = 0; i < steps; i++) {
         int idx = (i + rotation) % steps;
         if (euclid_pattern[idx]) {
-            seq_append(result, pattern_seq->values[pattern_idx % pattern_seq->length]);
+            if (!seq_append(result, pattern_seq->values[pattern_idx % pattern_seq->length])) { seq_free(result); ALIEN_FREE(euclid_pattern, sizeof(int) * steps); seq_free(pattern_seq); return NULL; }
             pattern_idx++;
         } else {
-            seq_append(result, -1);
+            if (!seq_append(result, -1)) { seq_free(result); ALIEN_FREE(euclid_pattern, sizeof(int) * steps); seq_free(pattern_seq); return NULL; }
         }
     }
 
@@ -713,10 +745,12 @@ static Sequence* eval_bjork(ASTNode *node) {
     int steps = steps_seq->values[0];
     seq_free(hits_seq); seq_free(steps_seq);
     int *pattern = (int*)ALIEN_MALLOC(sizeof(int) * steps);
+    if (!pattern) return NULL;
     bjorklund_rhythm(hits, steps, pattern);
     Sequence *result = seq_new();
+    if (!result) { ALIEN_FREE(pattern, sizeof(int) * steps); return NULL; }
     for (int i = 0; i < steps; i++) {
-        seq_append(result, pattern[i] ? 1 : -1);
+        if (!seq_append(result, pattern[i] ? 1 : -1)) { seq_free(result); ALIEN_FREE(pattern, sizeof(int) * steps); return NULL; }
     }
     ALIEN_FREE(pattern, sizeof(int) * steps);
     return result;
@@ -731,9 +765,10 @@ static Sequence* eval_subdiv(ASTNode *node) {
     int n = n_seq->values[0];
     seq_free(n_seq);
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
         for (int j = 0; j < n; j++) {
-            seq_append(result, seq->values[i]);
+            if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
         }
     }
     seq_free(seq);
@@ -745,8 +780,9 @@ static Sequence* eval_reverse(ASTNode *node) {
     Sequence *seq = eval_node(node->data.op.children[0]);
     if (!seq) return NULL;
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = seq->length - 1; i >= 0; i--) {
-        seq_append(result, seq->values[i]);
+        if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
     }
     seq_free(seq);
     return result;
@@ -764,9 +800,10 @@ static Sequence* eval_rotate(ASTNode *node) {
     n = n % seq->length;
     if (n < 0) n += seq->length;
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
         int idx = (seq->length - n + i) % seq->length;
-        seq_append(result, seq->values[idx]);
+        if (!seq_append(result, seq->values[idx])) { seq_free(result); seq_free(seq); return NULL; }
     }
     seq_free(seq);
     return result;
@@ -777,11 +814,12 @@ static Sequence* eval_palindrome(ASTNode *node) {
     Sequence *seq = eval_node(node->data.op.children[0]);
     if (!seq) return NULL;
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
-        seq_append(result, seq->values[i]);
+        if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
     }
     for (int i = seq->length - 2; i >= 0; i--) {
-        seq_append(result, seq->values[i]);
+        if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
     }
     seq_free(seq);
     return result;
@@ -792,11 +830,12 @@ static Sequence* eval_mirror(ASTNode *node) {
     Sequence *seq = eval_node(node->data.op.children[0]);
     if (!seq) return NULL;
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
-        seq_append(result, seq->values[i]);
+        if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
     }
     for (int i = seq->length - 1; i >= 0; i--) {
-        seq_append(result, seq->values[i]);
+        if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
     }
     seq_free(seq);
     return result;
@@ -808,10 +847,11 @@ static Sequence* eval_interleave(ASTNode *node) {
     Sequence *seq2 = eval_node(node->data.op.children[1]);
     if (!seq1 || !seq2) { seq_free(seq1); seq_free(seq2); return NULL; }
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq1); seq_free(seq2); return NULL; }
     int max_len = seq1->length > seq2->length ? seq1->length : seq2->length;
     for (int i = 0; i < max_len; i++) {
-        if (i < seq1->length) seq_append(result, seq1->values[i]);
-        if (i < seq2->length) seq_append(result, seq2->values[i]);
+        if (i < seq1->length) { if (!seq_append(result, seq1->values[i])) { seq_free(result); seq_free(seq1); seq_free(seq2); return NULL; } }
+        if (i < seq2->length) { if (!seq_append(result, seq2->values[i])) { seq_free(result); seq_free(seq1); seq_free(seq2); return NULL; } }
     }
     seq_free(seq1); seq_free(seq2);
     return result;
@@ -822,6 +862,7 @@ static Sequence* eval_shuffle(ASTNode *node) {
     Sequence *seq = eval_node(node->data.op.children[0]);
     if (!seq) return NULL;
     Sequence *result = seq_copy(seq);
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = result->length - 1; i > 0; i--) {
         int j = random_range(0, i);
         int temp = result->values[i];
@@ -841,9 +882,10 @@ static Sequence* eval_take(ASTNode *node) {
     int n = n_seq->values[0];
     seq_free(n_seq);
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     int limit = n < seq->length ? n : seq->length;
     for (int i = 0; i < limit; i++) {
-        seq_append(result, seq->values[i]);
+        if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
     }
     seq_free(seq);
     return result;
@@ -858,8 +900,9 @@ static Sequence* eval_drop(ASTNode *node) {
     int n = n_seq->values[0];
     seq_free(n_seq);
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = n; i < seq->length; i++) {
-        seq_append(result, seq->values[i]);
+        if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
     }
     seq_free(seq);
     return result;
@@ -874,8 +917,9 @@ static Sequence* eval_every(ASTNode *node) {
     int n = n_seq->values[0];
     seq_free(n_seq);
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i += n) {
-        seq_append(result, seq->values[i]);
+        if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
     }
     seq_free(seq);
     return result;
@@ -894,8 +938,9 @@ static Sequence* eval_slice(ASTNode *node) {
     if (start < 0) start = 0;
     if (end > seq->length) end = seq->length;
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = start; i < end && i < seq->length; i++) {
-        seq_append(result, seq->values[i]);
+        if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
     }
     seq_free(seq);
     return result;
@@ -906,9 +951,10 @@ static Sequence* eval_filter(ASTNode *node) {
     Sequence *seq = eval_node(node->data.op.children[0]);
     if (!seq) return NULL;
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
         if (seq->values[i] != -1) {
-            seq_append(result, seq->values[i]);
+            if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
         }
     }
     seq_free(seq);
@@ -933,8 +979,9 @@ static Sequence* eval_rand(ASTNode *node) {
     int max = max_seq->values[0];
     seq_free(count_seq); seq_free(min_seq); seq_free(max_seq);
     Sequence *result = seq_new();
+    if (!result) return NULL;
     for (int i = 0; i < count; i++) {
-        seq_append(result, random_range(min, max));
+        if (!seq_append(result, random_range(min, max))) { seq_free(result); return NULL; }
     }
     return result;
 }
@@ -948,11 +995,12 @@ static Sequence* eval_prob(ASTNode *node) {
     int prob = prob_seq->values[0];
     seq_free(prob_seq);
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
         if (random_range(0, 100) < prob) {
-            seq_append(result, seq->values[i]);
+            if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
         } else {
-            seq_append(result, -1);
+            if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
         }
     }
     seq_free(seq);
@@ -989,13 +1037,14 @@ static Sequence* eval_range(ASTNode *node) {
         seq_free(step_seq);
     }
     Sequence *result = seq_new();
+    if (!result) return NULL;
     if (step > 0) {
         for (int i = start; i <= end; i += step) {
-            seq_append(result, i);
+            if (!seq_append(result, i)) { seq_free(result); return NULL; }
         }
     } else {
         for (int i = start; i >= end; i += step) {
-            seq_append(result, i);
+            if (!seq_append(result, i)) { seq_free(result); return NULL; }
         }
     }
     return result;
@@ -1013,14 +1062,15 @@ static Sequence* eval_ramp(ASTNode *node) {
     int steps = steps_seq->values[0];
     seq_free(start_seq); seq_free(end_seq); seq_free(steps_seq);
     Sequence *result = seq_new();
+    if (!result) return NULL;
     if (steps <= 1) {
-        seq_append(result, end);
+        if (!seq_append(result, end)) { seq_free(result); return NULL; }
         return result;
     }
     for (int i = 0; i < steps; i++) {
         double t = (double)i / (steps - 1);
         int val = start + (int)(t * (end - start));
-        seq_append(result, val);
+        if (!seq_append(result, val)) { seq_free(result); return NULL; }
     }
     return result;
 }
@@ -1037,8 +1087,9 @@ static Sequence* eval_drunk(ASTNode *node) {
     int current = start_seq->values[0];
     seq_free(steps_seq); seq_free(max_step_seq); seq_free(start_seq);
     Sequence *result = seq_new();
+    if (!result) return NULL;
     for (int i = 0; i < steps; i++) {
-        seq_append(result, current);
+        if (!seq_append(result, current)) { seq_free(result); return NULL; }
         int delta = random_range(-max_step, max_step);
         current += delta;
     }
@@ -1058,8 +1109,9 @@ static Sequence* eval_cycle(ASTNode *node) {
         return seq_new();
     }
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < target_len; i++) {
-        seq_append(result, seq->values[i % seq->length]);
+        if (!seq_append(result, seq->values[i % seq->length])) { seq_free(result); seq_free(seq); return NULL; }
     }
     seq_free(seq);
     return result;
@@ -1070,12 +1122,13 @@ static Sequence* eval_grow(ASTNode *node) {
     Sequence *seq = eval_node(node->data.op.children[0]);
     if (!seq) return NULL;
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int len = 1; len <= seq->length; len++) {
         for (int i = 0; i < len; i++) {
-            seq_append(result, seq->values[i]);
+            if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
         }
         for (int i = len; i < seq->length; i++) {
-            seq_append(result, -1);
+            if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
         }
     }
     seq_free(seq);
@@ -1091,11 +1144,12 @@ static Sequence* eval_degrade(ASTNode *node) {
     int prob = prob_seq->values[0];
     seq_free(prob_seq);
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
         if (random_range(0, 100) >= prob) {
-            seq_append(result, seq->values[i]);
+            if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
         } else {
-            seq_append(result, -1);
+            if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
         }
     }
     seq_free(seq);
@@ -1113,9 +1167,10 @@ static Sequence* eval_quantize(ASTNode *node) {
     if (!seq || !scale) { seq_free(seq); seq_free(scale); return NULL; }
     if (scale->length == 0) { set_error("quantize: scale cannot be empty"); seq_free(seq); seq_free(scale); return NULL; }
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); seq_free(scale); return NULL; }
     for (int i = 0; i < seq->length; i++) {
         if (seq->values[i] == -1) {
-            seq_append(result, -1);
+            if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); seq_free(scale); return NULL; }
             continue;
         }
         int nearest = scale->values[0];
@@ -1127,7 +1182,7 @@ static Sequence* eval_quantize(ASTNode *node) {
                 nearest = scale->values[j];
             }
         }
-        seq_append(result, nearest);
+        if (!seq_append(result, nearest)) { seq_free(result); seq_free(seq); seq_free(scale); return NULL; }
     }
     seq_free(seq); seq_free(scale);
     return result;
@@ -1144,15 +1199,16 @@ static Sequence* eval_chord(ASTNode *node) {
     int type = type_seq->values[0];
     seq_free(type_seq);
     Sequence *result = seq_new();
+    if (!result) return NULL;
     switch (type) {
-        case 0: seq_append(result, root); seq_append(result, root + 4); seq_append(result, root + 7); break;
-        case 1: seq_append(result, root); seq_append(result, root + 3); seq_append(result, root + 7); break;
-        case 2: seq_append(result, root); seq_append(result, root + 3); seq_append(result, root + 6); break;
-        case 3: seq_append(result, root); seq_append(result, root + 4); seq_append(result, root + 8); break;
-        case 4: seq_append(result, root); seq_append(result, root + 4); seq_append(result, root + 7); seq_append(result, root + 11); break;
-        case 5: seq_append(result, root); seq_append(result, root + 3); seq_append(result, root + 7); seq_append(result, root + 10); break;
-        case 6: seq_append(result, root); seq_append(result, root + 4); seq_append(result, root + 7); seq_append(result, root + 10); break;
-        default: seq_append(result, root); seq_append(result, root + 4); seq_append(result, root + 7);
+        case 0: if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 7)) { seq_free(result); return NULL; } break;
+        case 1: if (!seq_append(result, root) || !seq_append(result, root + 3) || !seq_append(result, root + 7)) { seq_free(result); return NULL; } break;
+        case 2: if (!seq_append(result, root) || !seq_append(result, root + 3) || !seq_append(result, root + 6)) { seq_free(result); return NULL; } break;
+        case 3: if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 8)) { seq_free(result); return NULL; } break;
+        case 4: if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 7) || !seq_append(result, root + 11)) { seq_free(result); return NULL; } break;
+        case 5: if (!seq_append(result, root) || !seq_append(result, root + 3) || !seq_append(result, root + 7) || !seq_append(result, root + 10)) { seq_free(result); return NULL; } break;
+        case 6: if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 7) || !seq_append(result, root + 10)) { seq_free(result); return NULL; } break;
+        default: if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 7)) { seq_free(result); return NULL; }
     }
     return result;
 }
@@ -1172,17 +1228,18 @@ static Sequence* eval_arp(ASTNode *node) {
         return seq_new();
     }
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < length; i++) {
         if (direction == 0) {
-            seq_append(result, seq->values[i % seq->length]);
+            if (!seq_append(result, seq->values[i % seq->length])) { seq_free(result); seq_free(seq); return NULL; }
         } else if (direction == 1) {
             int idx = seq->length - 1 - (i % seq->length);
-            seq_append(result, seq->values[idx]);
+            if (!seq_append(result, seq->values[idx])) { seq_free(result); seq_free(seq); return NULL; }
         } else {
-            int cycle_len = (seq->length - 1) * 2;
+            int cycle_len = seq->length <= 1 ? 1 : (seq->length - 1) * 2;
             int pos = i % cycle_len;
             int idx = pos < seq->length ? pos : cycle_len - pos;
-            seq_append(result, seq->values[idx]);
+            if (!seq_append(result, seq->values[idx])) { seq_free(result); seq_free(seq); return NULL; }
         }
     }
     seq_free(seq);
@@ -1198,10 +1255,11 @@ static Sequence* eval_delay(ASTNode *node) {
     int n = n_seq->values[0];
     seq_free(n_seq);
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < n; i++) {
-        seq_append(result, -1);
+        if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
     }
-    seq_extend(result, seq);
+    if (!seq_extend(result, seq)) { seq_free(result); seq_free(seq); return NULL; }
     seq_free(seq);
     return result;
 }
@@ -1215,11 +1273,12 @@ static Sequence* eval_gate(ASTNode *node) {
     int n = n_seq->values[0];
     seq_free(n_seq);
     Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
         if (i % n == 0) {
-            seq_append(result, seq->values[i]);
+            if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
         } else {
-            seq_append(result, -1);
+            if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
         }
     }
     seq_free(seq);
