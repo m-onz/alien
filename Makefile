@@ -44,7 +44,7 @@ CLI_CFLAGS = -Wall -Wextra -std=c99 -O2
 # Build targets
 .PHONY: all clean install test help
 
-all: alien.$(EXT) alien_router.$(EXT) alien_parser
+all: alien.$(EXT) alien_router.$(EXT) alien_scale.$(EXT) alien_groove.$(EXT) alien_parser
 
 # Pure Data externals
 alien.$(EXT): alien.c alien_core.h
@@ -52,6 +52,12 @@ alien.$(EXT): alien.c alien_core.h
 
 alien_router.$(EXT): alien_router.c
 	$(CC) $(PD_CFLAGS) -o $@ alien_router.c $(LDFLAGS)
+
+alien_scale.$(EXT): alien_scale.c alien_core.h
+	$(CC) $(PD_CFLAGS) -o $@ alien_scale.c $(LDFLAGS)
+
+alien_groove.$(EXT): alien_groove.c alien_core.h
+	$(CC) $(PD_CFLAGS) -o $@ alien_groove.c $(LDFLAGS)
 
 # Standalone CLI tool
 alien_parser: alien_parser.c alien_core.h
@@ -62,10 +68,12 @@ test: alien_parser
 	./alien_parser --test
 
 # Install Pure Data externals
-install: alien.$(EXT) alien_router.$(EXT)
+install: alien.$(EXT) alien_router.$(EXT) alien_scale.$(EXT) alien_groove.$(EXT)
 	mkdir -p $(PD_EXTERNALS_DIR)/alien
 	cp alien.$(EXT) $(PD_EXTERNALS_DIR)/alien/
 	cp alien_router.$(EXT) $(PD_EXTERNALS_DIR)/alien/
+	cp alien_scale.$(EXT) $(PD_EXTERNALS_DIR)/alien/
+	cp alien_groove.$(EXT) $(PD_EXTERNALS_DIR)/alien/
 	@if [ -f examples/alien-help.pd ]; then \
 		cp examples/alien-help.pd $(PD_EXTERNALS_DIR)/alien/; \
 	elif [ -f alien-help.pd ]; then \
@@ -80,7 +88,7 @@ install: alien.$(EXT) alien_router.$(EXT)
 
 # Clean build artifacts
 clean:
-	rm -f alien.$(EXT) alien_router.$(EXT) alien_parser *.o
+	rm -f alien.$(EXT) alien_router.$(EXT) alien_scale.$(EXT) alien_groove.$(EXT) alien_parser *.o
 
 # Help
 help:
