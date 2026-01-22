@@ -423,6 +423,10 @@ static ASTNode* ast_new_op(NodeType type) {
     if (!node) return NULL;
     node->type = type;
     node->data.op.children = (ASTNode**)ALIEN_MALLOC(sizeof(ASTNode*) * 4);
+    if (!node->data.op.children) {
+        ALIEN_FREE(node, sizeof(ASTNode));
+        return NULL;
+    }
     node->data.op.child_count = 0;
     node->data.op.child_capacity = 4;
     return node;

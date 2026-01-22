@@ -42,9 +42,9 @@ PD_CFLAGS = $(ARCH_FLAGS) $(PD_INCLUDES) $(WARNINGS) $(OPTFLAGS) -DPD
 CLI_CFLAGS = -Wall -Wextra -std=c99 -O2
 
 # Build targets
-.PHONY: all clean install test help
+.PHONY: all clean install test test-evo help
 
-all: alien.$(EXT) alien_router.$(EXT) alien_scale.$(EXT) alien_groove.$(EXT) alien_evolve.$(EXT) alien_parser
+all: alien.$(EXT) alien_router.$(EXT) alien_scale.$(EXT) alien_groove.$(EXT) alien_parser
 
 # Pure Data externals
 alien.$(EXT): alien.c alien_core.h
@@ -59,10 +59,7 @@ alien_scale.$(EXT): alien_scale.c alien_core.h
 alien_groove.$(EXT): alien_groove.c alien_core.h
 	$(CC) $(PD_CFLAGS) -o $@ alien_groove.c $(LDFLAGS)
 
-alien_evolve.$(EXT): alien_evolve.c alien_core.h alien_evo_core.h
-	$(CC) $(PD_CFLAGS) -o $@ alien_evolve.c $(LDFLAGS) -lm
-
-# Standalone CLI tool
+# Standalone CLI tools
 alien_parser: alien_parser.c alien_core.h
 	$(CC) $(CLI_CFLAGS) -o $@ alien_parser.c -lm
 
@@ -71,13 +68,12 @@ test: alien_parser
 	./alien_parser --test
 
 # Install Pure Data externals
-install: alien.$(EXT) alien_router.$(EXT) alien_scale.$(EXT) alien_groove.$(EXT) alien_evolve.$(EXT)
+install: alien.$(EXT) alien_router.$(EXT) alien_scale.$(EXT) alien_groove.$(EXT)
 	mkdir -p $(PD_EXTERNALS_DIR)/alien
 	cp alien.$(EXT) $(PD_EXTERNALS_DIR)/alien/
 	cp alien_router.$(EXT) $(PD_EXTERNALS_DIR)/alien/
 	cp alien_scale.$(EXT) $(PD_EXTERNALS_DIR)/alien/
 	cp alien_groove.$(EXT) $(PD_EXTERNALS_DIR)/alien/
-	cp alien_evolve.$(EXT) $(PD_EXTERNALS_DIR)/alien/
 	@if [ -f examples/alien-help.pd ]; then \
 		cp examples/alien-help.pd $(PD_EXTERNALS_DIR)/alien/; \
 	elif [ -f alien-help.pd ]; then \
@@ -92,26 +88,27 @@ install: alien.$(EXT) alien_router.$(EXT) alien_scale.$(EXT) alien_groove.$(EXT)
 
 # Clean build artifacts
 clean:
-	rm -f alien.$(EXT) alien_router.$(EXT) alien_scale.$(EXT) alien_groove.$(EXT) alien_evolve.$(EXT) alien_parser *.o
+	rm -f alien.$(EXT) alien_router.$(EXT) alien_scale.$(EXT) alien_groove.$(EXT) alien_parser *.o
 
 # Help
 help:
 	@echo "alien - Lisp pattern language for Pure Data"
 	@echo ""
 	@echo "Targets:"
-	@echo "  make              - Build both PD external and CLI tool"
-	@echo "  make alien.$(EXT)  - Build Pure Data external only"
-	@echo "  make alien_parser - Build CLI tool only"
-	@echo "  make test         - Run test suite"
-	@echo "  make install      - Install PD external to $(PD_EXTERNALS_DIR)"
-	@echo "  make clean        - Remove build artifacts"
+	@echo "  make                 - Build all PD externals and CLI tools"
+	@echo "  make alien.$(EXT)     - Build main PD external only"
+	@echo "  make alien_parser    - Build pattern CLI tool"
+	@echo "  make test            - Run pattern test suite"
+	@echo "  make install         - Install PD externals to $(PD_EXTERNALS_DIR)"
+	@echo "  make clean           - Remove build artifacts"
 	@echo ""
 	@echo "Installation Options:"
 	@echo "  PREFIX=/path      - Custom installation directory"
 	@echo "  Example: make install PREFIX=~/.pd-externals"
 	@echo "  Default: $(DEFAULT_PD_DIR)"
 	@echo ""
-	@echo "CLI Usage:"
+	@echo "CLI Usage (alien_parser):"
 	@echo "  ./alien_parser '(euclid 5 8)'"
 	@echo "  echo '(seq 1 2 3)' | ./alien_parser"
 	@echo "  ./alien_parser --test"
+        # Run evolution tests"

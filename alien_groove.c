@@ -126,8 +126,8 @@ static void process_mask_mode(t_alien_groove *x, t_atom *in, t_atom *out, int le
         } else {
             // Hit on non-template position: probabilistic based on strictness
             if (random_percent(x) < x->x_strictness) {
-                // Silence it
-                SETFLOAT(&out[i], REST_VALUE);
+                // Silence it - output "-" symbol, not -1
+                SETSYMBOL(&out[i], gensym("-"));
             } else {
                 // Let it through
                 out[i] = in[i];
@@ -137,9 +137,9 @@ static void process_mask_mode(t_alien_groove *x, t_atom *in, t_atom *out, int le
 }
 
 static void process_pull_mode(t_alien_groove *x, t_atom *in, t_atom *out, int len) {
-    // Initialize output as all rests
+    // Initialize output as all rests (use "-" symbol, not -1)
     for (int i = 0; i < len; i++) {
-        SETFLOAT(&out[i], REST_VALUE);
+        SETSYMBOL(&out[i], gensym("-"));
     }
 
     for (int i = 0; i < len; i++) {
@@ -169,9 +169,9 @@ static void process_pull_mode(t_alien_groove *x, t_atom *in, t_atom *out, int le
 }
 
 static void process_push_mode(t_alien_groove *x, t_atom *in, t_atom *out, int len) {
-    // Initialize output as all rests
+    // Initialize output as all rests (use "-" symbol, not -1)
     for (int i = 0; i < len; i++) {
-        SETFLOAT(&out[i], REST_VALUE);
+        SETSYMBOL(&out[i], gensym("-"));
     }
 
     for (int i = 0; i < len; i++) {
