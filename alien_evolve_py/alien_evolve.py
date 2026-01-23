@@ -30,26 +30,31 @@ def load_patterns_file() -> List[str]:
     """Load patterns from patterns.txt if it exists."""
     if not os.path.exists(PATTERNS_FILE):
         return []
-    
+
     patterns = []
     try:
         with open(PATTERNS_FILE, 'r') as f:
             for line in f:
                 line = line.strip()
+                # Strip trailing semicolon if present
+                if line.endswith(';'):
+                    line = line[:-1].strip()
                 if line and not line.startswith('#'):
                     patterns.append(line)
     except Exception as e:
         print(f"Warning: Could not load {PATTERNS_FILE}: {e}")
-    
+
     return patterns
 
 def save_patterns_file(patterns: List[str], append: bool = True):
-    """Save patterns to patterns.txt."""
+    """Save patterns to patterns.txt with semicolons and newlines."""
     mode = 'a' if append else 'w'
     try:
         with open(PATTERNS_FILE, mode) as f:
             for pattern in patterns:
-                f.write(pattern + '\n')
+                # Strip any existing semicolon to avoid duplicates
+                pattern = pattern.rstrip(';').strip()
+                f.write(pattern + ';\n')
     except Exception as e:
         print(f"Warning: Could not save to {PATTERNS_FILE}: {e}")
 
@@ -202,7 +207,7 @@ def validate_with_parser(program: str) -> bool:
     """Validate program using the alien_parser CLI."""
     if not os.path.exists(ALIEN_PARSER_PATH):
         return validate(program)  # fallback to internal validation
-    
+
     try:
         result = subprocess.run(
             [ALIEN_PARSER_PATH, program],
@@ -214,6 +219,53 @@ def validate_with_parser(program: str) -> bool:
         return result.returncode == 0 and not result.stderr
     except (subprocess.TimeoutExpired, Exception):
         return False
+
+def evaluate_pattern_output(program: str) -> Optional[str]:
+    """Get the evaluated output from alien_parser CLI."""
+    if not os.path.exists(ALIEN_PARSER_PATH):
+        return None
+
+    try:
+        result = subprocess.run(
+            [ALIEN_PARSER_PATH, program],
+            capture_output=True,
+            text=True,
+            timeout=2
+        )
+        if result.returncode == 0 and result.stdout:
+            return result.stdout.strip()
+    except (subprocess.TimeoutExpired, Exception):
+        pass
+    return None
+
+def output_rest_ratio(program: str) -> float:
+    """
+    Calculate the ratio of rests in the evaluated output.
+    Returns 1.0 if all rests, 0.0 if no rests, -1.0 if evaluation failed.
+    """
+    output = evaluate_pattern_output(program)
+    if output is None:
+        return -1.0
+
+    # Parse the output - expect space-separated values where "-" or "-1" is a rest
+    values = output.split()
+    if not values:
+        return 1.0  # Empty output = all rests
+
+    rest_count = 0
+    note_count = 0
+    for v in values:
+        v = v.strip()
+        if v == '-' or v == '-1':
+            rest_count += 1
+        elif v.lstrip('-').isdigit():
+            note_count += 1
+
+    total = rest_count + note_count
+    if total == 0:
+        return 1.0  # No valid values = treat as all rests
+
+    return rest_count / total
 
 # =============================================================================
 # INTERNAL PARSER & VALIDATOR
@@ -1369,20 +1421,57 @@ def rest_score(node: ASTNode) -> float:
     else:
         return 0.0  # almost all rests = useless
 
+def output_score(program: str) -> float:
+    """
+    Score based on the actual evaluated output.
+    Penalizes patterns that produce all rests or too many rests.
+    """
+    ratio = output_rest_ratio(program)
+
+    if ratio < 0:
+        # Evaluation failed - use neutral score
+        return 0.5
+
+    if ratio >= 1.0:
+        # All rests = useless pattern
+        return 0.0
+    elif ratio >= 0.9:
+        # Almost all rests
+        return 0.1
+    elif ratio >= 0.7:
+        # Too many rests
+        return 0.3
+    elif ratio >= 0.5:
+        # Borderline
+        return 0.5
+    elif ratio >= 0.2:
+        # Good balance of rests
+        return 1.0
+    elif ratio >= 0.1:
+        # Decent amount of rests
+        return 0.8
+    else:
+        # Very few rests in output
+        return 0.6
+
+
 def fitness(program: str, corpus: List[str]) -> float:
-    """Combined fitness score - prioritizes novelty and rest usage."""
+    """Combined fitness score - prioritizes novelty, output quality, and rest usage."""
     ast = parse(program)
     if ast is None:
         return 0.0
-    
+
     c_score = complexity_score(ast)
     n_score = novelty_score(program, corpus)
     m_score = musical_score(ast)
     l_score = length_score(program)
     r_score = rest_score(ast)
-    
-    # Weights: novelty 35%, rests 20%, musicality 25%, complexity 15%, length 5%
-    return 0.15 * c_score + 0.35 * n_score + 0.25 * m_score + 0.05 * l_score + 0.20 * r_score
+    o_score = output_score(program)
+
+    # Weights: novelty 30%, output 20%, rests 15%, musicality 20%, complexity 10%, length 5%
+    # Output score ensures we penalize patterns that evaluate to all rests
+    return (0.10 * c_score + 0.30 * n_score + 0.20 * m_score +
+            0.05 * l_score + 0.15 * r_score + 0.20 * o_score)
 
 # =============================================================================
 # ROLLING CORPUS
