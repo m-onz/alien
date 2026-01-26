@@ -1,12 +1,12 @@
-#N canvas 223 305 401 597 12;
+#N canvas 367 309 401 597 12;
 #X obj 35 186 pix_film;
-#X obj 37 482 pix_texture;
-#X obj 37 504 rectangle 5.36 4.02;
+#X obj 41 484 pix_texture;
+#X obj 41 506 rectangle 5.36 4.02;
 #X obj 84 89 tgl 19 0 empty empty empty 0 -10 0 12 #fcfcfc #000000 #000000 0 1;
 #X obj 152 134 openpanel;
 #X msg 152 153 open \$1 RGBA;
 #X msg 83 111 auto \$1;
-#N canvas 54 114 970 659 video 0;
+#N canvas 308 146 970 659 video 0;
 #X obj 327 179 pdcontrol;
 #X msg 327 156 dir;
 #X obj 327 137 bng 15 250 50 0 empty empty empty 17 7 0 10 #fcfcfc #000000 #000000;
@@ -32,7 +32,7 @@
 #X obj 346 98 pipe 900;
 #X msg 133 131 0;
 #X obj 408 587 outlet;
-#X msg 327 204 \$1/../videos;
+#X msg 327 204 \$1/videos;
 #X connect 0 0 25 0;
 #X connect 1 0 0 0;
 #X connect 2 0 1 0;
@@ -90,8 +90,8 @@
 #X msg 82 389 fill \$1;
 #X obj 82 371 tgl 15 0 empty empty empty 0 -6 0 8 #fcfcfc #000000 #000000 0 1;
 #X obj 307 19 inlet;
-#X obj 43 442 translate 0 0 -11;
-#X obj 332 474 outlet;
+#X obj 43 442 translate 0 0 0;
+#X obj 240 114 print;
 #X connect 0 0 9 0;
 #X connect 0 2 22 0;
 #X connect 1 0 2 0;
@@ -102,6 +102,7 @@
 #X connect 7 0 8 0;
 #X connect 7 1 20 0;
 #X connect 8 0 0 0;
+#X connect 8 0 32 0;
 #X connect 9 0 31 0;
 #X connect 10 0 9 1;
 #X connect 11 0 3 0;
@@ -122,4 +123,4 @@
 #X connect 28 0 23 0;
 #X connect 29 0 28 0;
 #X connect 30 0 0 1;
-#X connect 31 0 32 0;
+#X connect 31 0 1 0;
