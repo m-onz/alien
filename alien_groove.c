@@ -14,6 +14,7 @@
  * Messages:
  *   strictness <0-100>   - how strictly to enforce (default 100)
  *   mode <mask|pull|push> - constraint mode (default mask)
+ *   phase <n>            - rotate template by N steps (default 0)
  *
  * Modes:
  *   mask - silence non-aligned hits based on strictness
@@ -48,6 +49,7 @@ typedef struct _alien_groove {
 
     int x_strictness;                   // 0-100
     groove_mode x_mode;
+    int x_phase;                        // Template rotation offset
 
     int x_random_initialized;
 } t_alien_groove;
@@ -72,10 +74,11 @@ static int random_percent(t_alien_groove *x) {
 // TEMPLATE HELPERS
 // ============================================================================
 
-// Check if position i in template is a hit (cycling if needed)
+// Check if position i in template is a hit (cycling if needed, with phase)
 static int template_is_hit(t_alien_groove *x, int i) {
     if (x->x_template_len == 0) return 1;  // No template = everything allowed
-    int idx = i % x->x_template_len;
+    int idx = ((i + x->x_phase) % x->x_template_len + x->x_template_len)
+              % x->x_template_len;
     return x->x_template[idx] != 0;
 }
 
@@ -250,6 +253,10 @@ static void alien_groove_strictness(t_alien_groove *x, t_floatarg f) {
     if (x->x_strictness > 100) x->x_strictness = 100;
 }
 
+static void alien_groove_phase(t_alien_groove *x, t_floatarg f) {
+    x->x_phase = (int)f;
+}
+
 static void alien_groove_mode(t_alien_groove *x, t_symbol *s) {
     if (strcmp(s->s_name, "mask") == 0) {
         x->x_mode = MODE_MASK;
@@ -272,6 +279,7 @@ static void *alien_groove_new(void) {
     // Defaults
     x->x_strictness = 100;
     x->x_mode = MODE_MASK;
+    x->x_phase = 0;
     x->x_template_len = 0;  // No template = everything passes
     x->x_random_initialized = 0;
 
@@ -308,5 +316,7 @@ void alien_groove_setup(void) {
                     gensym("strictness"), A_FLOAT, 0);
     class_addmethod(alien_groove_class, (t_method)alien_groove_mode,
                     gensym("mode"), A_SYMBOL, 0);
+    class_addmethod(alien_groove_class, (t_method)alien_groove_phase,
+                    gensym("phase"), A_FLOAT, 0);
     post("alien_groove %s - rhythmic pattern constrainer", ALIEN_VERSION_STRING);
 }

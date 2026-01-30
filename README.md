@@ -7,20 +7,18 @@ An algorithmic audio visual toolkit for [pure data and GEM](https://puredata.inf
 
 # Get started
 
-To use alien you will need: 
+To use alien you will need:
 
 * Install vanilla [pure data and GEM](https://puredata.info/downloads/pure-data)
 
-You do not want pd-extended, purr-data. It's better to use stable and original Pd vanilla and add dependencies as needed.
-
-No one serious really cares about having curvy patch cables and all that guff.
+You might not want pd-extended, purr-data. I recommend using Pd vanilla and adding dependencies as needed.
 
 * download or clone this repository
 
-With gcc or a c compiler 
+With gcc or a c compiler
 
 ```bash
-cd alien 
+cd alien
 make
 make install
 ```
@@ -39,25 +37,13 @@ That is is how you can get Pd with batteries included and have a powerful algori
 
 Add more sounds and video's to the alien folder, or reference sounds or artifacts in your local folder.
 
-# Alien DSL
-
-Alien is built around a domain specific language for writing or live coding patterns. We send these patterns via messages (internally or externally via UDP updsend). The alien DSL has no concept of variables and other programming concepts that you might expect.
-
-It's Lisp-like pattern language where you can write things lie `(euclid 5 8)` and get `- 1 - 1 1 - 1 1`. Nest operators, generate rhythms, arpeggiate chords, quantize drunk walks to scales. Feed the output to `[else/sequencer]` and drive anything—synths, samplers, visuals, whatever.
-
-## Why
-
-The sequences that `[else/sequencer]` accepts—hyphens and numbers like `- - 2 3 - - 4`—are deceptively powerful. A metro steps through them. Hyphens are rests. Numbers trigger events. This simple format can drive any parameter in Pure Data: MIDI notes, filter cutoffs, GEM coordinates, video playback positions.
-
-The problem is writing interesting sequences by hand. Euclidean rhythms, arpeggios, probability-based variations, drunk walks—you want these things but typing them out is tedious. alien gives you a language to describe patterns compositionally. Nest operators. Build complexity from simple pieces.
-
-## What's in the box
+# What's in the box
 
 **Pure Data externals:**
 - `[alien]` — the pattern language interpreter
-- `[alien_router]` — route messages by first symbol (like `[route]` but keeps the whole pattern)
-- `[alien_scale]` — scale/mode quantizer with 20+ built-in scales
-- `[alien_groove]` — constrain patterns to a template groove
+- `[alien_router]` — route messages by first symbol
+- `[alien_scale]` — scale/mode quantizer with harmonic field control
+- `[alien_groove]` — rhythmic pattern constrainer with phase shifting
 
 **Abstractions:**
 - `[alien_visuals]` — vj rig for adding pixel effects to the framebuffer
@@ -65,6 +51,14 @@ The problem is writing interesting sequences by hand. Euclidean rhythms, arpeggi
 - `[video]` — GEM video player
 - `[playdir~]` — directory-based sample player
 
-## Credits
+# Documentation
+
+See the [docs](docs/) folder:
+
+- [Alien DSL operators](docs/OPERATORS.md) — full reference for the pattern language
+- [alien_scale](docs/alien_scale.md) — scale quantizer, harmonic fields, interval filters
+- [alien_groove](docs/alien_groove.md) — rhythmic constrainer, phase shifting
+
+# Credits
 
 Named after the [Lisp alien](https://lispers.org/). Inspired by TidalCycles, SuperCollider, and the live coding community.
