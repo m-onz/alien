@@ -21,3 +21,6 @@ seqgen
 # Backup files
 *.bak
 *~
+
+patterns_raw.txt
+patterns.txt

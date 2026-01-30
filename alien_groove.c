@@ -47,6 +47,9 @@ typedef struct _alien_groove {
     int x_template[MAX_PATTERN_LEN];   // Template pattern (1=hit, 0=rest)
     int x_template_len;
 
+    t_atom x_last_input[MAX_PATTERN_LEN];  // Store last input for re-output
+    int x_last_input_len;
+
     int x_strictness;                   // 0-100
     groove_mode x_mode;
     int x_phase;                        // Template rotation offset
@@ -211,6 +214,12 @@ static void alien_groove_list(t_alien_groove *x, t_symbol *s, int argc, t_atom *
     if (argc == 0) return;
     if (argc > MAX_PATTERN_LEN) argc = MAX_PATTERN_LEN;
 
+    // Store input for potential re-output on phase/mode change
+    x->x_last_input_len = argc;
+    for (int i = 0; i < argc; i++) {
+        x->x_last_input[i] = argv[i];
+    }
+
     t_atom *out = (t_atom *)getbytes(sizeof(t_atom) * argc);
 
     switch (x->x_mode) {
@@ -247,14 +256,39 @@ static void alien_groove_template(t_alien_groove *x, t_symbol *s, int argc, t_at
     }
 }
 
+// Internal: re-process and output the last input pattern
+static void alien_groove_reprocess(t_alien_groove *x) {
+    if (x->x_last_input_len == 0) return;
+
+    t_atom *out = (t_atom *)getbytes(sizeof(t_atom) * x->x_last_input_len);
+
+    switch (x->x_mode) {
+        case MODE_PULL:
+            process_pull_mode(x, x->x_last_input, out, x->x_last_input_len);
+            break;
+        case MODE_PUSH:
+            process_push_mode(x, x->x_last_input, out, x->x_last_input_len);
+            break;
+        case MODE_MASK:
+        default:
+            process_mask_mode(x, x->x_last_input, out, x->x_last_input_len);
+            break;
+    }
+
+    outlet_list(x->x_out, &s_list, x->x_last_input_len, out);
+    freebytes(out, sizeof(t_atom) * x->x_last_input_len);
+}
+
 static void alien_groove_strictness(t_alien_groove *x, t_floatarg f) {
     x->x_strictness = (int)f;
     if (x->x_strictness < 0) x->x_strictness = 0;
     if (x->x_strictness > 100) x->x_strictness = 100;
+    alien_groove_reprocess(x);  // Re-output with new strictness
 }
 
 static void alien_groove_phase(t_alien_groove *x, t_floatarg f) {
     x->x_phase = (int)f;
+    alien_groove_reprocess(x);  // Re-output with new phase
 }
 
 static void alien_groove_mode(t_alien_groove *x, t_symbol *s) {
@@ -281,6 +315,7 @@ static void *alien_groove_new(void) {
     x->x_mode = MODE_MASK;
     x->x_phase = 0;
     x->x_template_len = 0;  // No template = everything passes
+    x->x_last_input_len = 0;
     x->x_random_initialized = 0;
 
     // Create right inlet for template (cold)
