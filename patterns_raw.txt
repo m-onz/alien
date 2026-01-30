@@ -1,0 +1,123 @@
+# Pattern evaluation debug output
+# Format: pattern | rest_ratio | evaluated_output
+
+(seq 60 - 64 - 67 -)
+  rest_ratio: 0.50
+  output: 60 - 64 - 67 -
+
+(interleave - (gate (range 67 79) 3))
+  rest_ratio: 0.64
+  output: - 67 - - 70 - - 73 - - 76 - - 79
+
+(seq (cycle (seq 60 - (seq - -) - -) 4) (seq - - 71 - 71) - - (seq - 52 64 -) 55)
+  rest_ratio: 0.62
+  output: 60 - - - - - 71 - 71 - - - 52 64 - 55
+
+(maybe (degrade (euclid (seq - - 69 64 62) 8) 25) (reverse (seq - - 52 60 55 -)) 50)
+  rest_ratio: 0.50
+  output: - 55 60 52 - -
+
+(seq (euclid (shuffle (degrade (seq 65 - 69 55 64) 50)) 8) (euclid 12 8))
+  rest_ratio: 0.44
+  output: - 64 - - - - - - 1 1 1 1 1 1 1 1
+
+(euclid (seq 4 - (take (chord 69 1) 3) - 4 4) 4 3)
+  rest_ratio: 0.25
+  output: 4 - 69 72
+
+(seq 60 64 - (reverse (shuffle (seq 71 55 - 62 -))) 48)
+  rest_ratio: 0.33
+  output: 60 64 - - - 62 71 55 48
+
+(rep (seq - - 55 (subdiv (seq - 67 65 48) 4)) 3)
+  rest_ratio: 0.32
+  output: - - 55 - - - - 67 67 67 67 65 65 65 65 48 48 48 48 - - 55 - - - - 67 67 67 67 65 65 65 65 48 48 48 48 - - 55 - - - - 67 67 67 67 65 65 65 65 48 48 48 48
+
+(choose (chord 60 0) (reverse (seq 60 71 60 - 67)))
+  rest_ratio: 0.20
+  output: 67 - 60 71 60
+
+(interleave (bjork 2 8) (interleave - 16))
+  rest_ratio: 0.70
+  output: 1 - - 16 - - 1 - - -
+
+(maybe (rand 16 0 1) (seq - 62 2 71) 50)
+  rest_ratio: 0.25
+  output: - 62 2 71
+
+(seq - 60 (euclid 7 16) (euclid 7 16) - 7)
+  rest_ratio: 0.56
+  output: - 60 - - 1 - 1 - 1 - - 1 - 1 - 1 - 1 - - 1 - 1 - 1 - - 1 - 1 - 1 - 1 - 7
+
+(reverse (seq 60 - 64 - 67))
+  rest_ratio: 0.40
+  output: 67 - 64 - 60
+
+(seq - 60 - (chord 64 4) - 4)
+  rest_ratio: 0.33
+  output: - 60 - 64 68 71 75 - 4
+
+(shuffle (seq 65 60 - 62))
+  rest_ratio: 0.25
+  output: 62 65 - 60
+
+(every (seq (seq - 69 72 52 - 69) (euclid (seq - 69 72 52 - 69) 8) (euclid (seq - 69 72 52 - 69) 8)) 1)
+  rest_ratio: 0.45
+  output: - 69 72 52 - 69 - - 69 72 - 52 - 69 - - 69 72 - 52 - 69
+
+(grow (shuffle (degrade (seq 65 - 69 55 (reverse 64)) 50)))
+  rest_ratio: 0.64
+  output: 69 - - - - 69 65 - - - 69 65 - - - 69 65 - - - 69 65 - - -
+
+(subdiv (interleave (choose 16 8 -) 3) 4)
+  rest_ratio: 0.50
+  output: - - - - 3 3 3 3
+
+(rotate (seq - (take (seq 55 - - 69) 3) 72 60 65) 1)
+  rest_ratio: 0.43
+  output: 65 - 55 - - 72 60
+
+(subdiv (mirror (shuffle (seq 64 - 71 - 67))) 1)
+  rest_ratio: 0.40
+  output: - 64 - 71 67 67 71 - 64 -
+
+(subdiv (quantize (reverse (seq 65 - 60 - 52)) (seq 60 62 64 65 67 69 71 72)) 1)
+  rest_ratio: 0.40
+  output: 60 - 60 - 65
+
+(quantize (palindrome (seq - 62 - 48)) (seq 60 62 64 65 67 69 71 72))
+  rest_ratio: 0.57
+  output: - 62 - 60 - 62 -
+
+(seq (gate (transpose 4 12) 4) 2 - 71)
+  rest_ratio: 0.25
+  output: 16 2 - 71
+
+(drop (rotate (prob (seq 69 69 55 60 72 -) 75) 3) 3)
+  rest_ratio: 0.33
+  output: 69 - 55
+
+(maybe (mirror (seq 67 72 - 48)) (bjork 2 8) 75)
+  rest_ratio: 0.25
+  output: 67 72 - 48 48 - 72 67
+
+(interleave (palindrome (bjork 2 8)) (maybe (degrade (seq - 64 62 64 62 72) 75) (gate (seq 60 - 65 64 65) 3) 25))
+  rest_ratio: 0.70
+  output: 1 60 - - - - - 64 1 - - - - - - 1 - - - 1
+
+(prob (every (seq 72 - - 55 65 64) 1) 50)
+  rest_ratio: 0.50
+  output: - - - 55 65 64
+
+(grow (rotate (seq - 69 67 71 - 48) 4))
+  rest_ratio: 0.58
+  output: 67 - - - - - 67 71 - - - - 67 71 - - - - 67 71 - 48 - - 67 71 - 48 - - 67 71 - 48 - 69
+
+(palindrome (take (seq 60 - 65 71 -) 6))
+  rest_ratio: 0.33
+  output: 60 - 65 71 - 71 65 - 60
+
+(grow (choose (interleave 8 -) (palindrome (seq - 69 69 65 69 55))))
+  rest_ratio: 0.50
+  output: 8 - 8 -
+

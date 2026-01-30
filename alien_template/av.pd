@@ -1,4 +1,5 @@
 #N canvas 673 34 771 379 12;
+#X declare -lib Gem;
 #X obj 20 155 metro 120;
 #X obj 20 119 tgl 19 0 empty empty empty 0 -10 0 12 #fcfcfc #000000 #000000 0 1;
 #X obj 149 146 else/out~;
@@ -6,7 +7,7 @@
 #X obj 149 121 catch~ main;
 #X text 250 177 be careful with your ears;
 #X obj 78 134 r tempo;
-#N canvas 500 49 888 733 visuals 0;
+#N canvas 500 49 888 733 visuals 1;
 #X text 123 50 I can crash Pd if I delete GEM objects without having a GEM window open FYI;
 #N canvas 339 345 450 300 puzzle_effect 0;
 #X obj 42 173 outlet;
@@ -560,6 +561,7 @@
 #X text 345 908 show hide shader;
 #X obj 954 954 pix_texture;
 #X obj 954 976 rectangle 5.36 4.02;
+#X obj 10 25 declare -lib Gem;
 #X connect 1 0 6 0;
 #X connect 2 0 5 1;
 #X connect 3 0 6 1;

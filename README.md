@@ -58,6 +58,7 @@ See the [docs](docs/) folder:
 - [Alien DSL operators](docs/OPERATORS.md) — full reference for the pattern language
 - [alien_scale](docs/alien_scale.md) — scale quantizer, harmonic fields, interval filters
 - [alien_groove](docs/alien_groove.md) — rhythmic constrainer, phase shifting
+- alien_evolve - experimental pattern evolution
 
 # Credits
 
