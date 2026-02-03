@@ -283,12 +283,10 @@ static void alien_groove_strictness(t_alien_groove *x, t_floatarg f) {
     x->x_strictness = (int)f;
     if (x->x_strictness < 0) x->x_strictness = 0;
     if (x->x_strictness > 100) x->x_strictness = 100;
-    alien_groove_reprocess(x);  // Re-output with new strictness
 }
 
 static void alien_groove_phase(t_alien_groove *x, t_floatarg f) {
     x->x_phase = (int)f;
-    alien_groove_reprocess(x);  // Re-output with new phase
 }
 
 static void alien_groove_mode(t_alien_groove *x, t_symbol *s) {

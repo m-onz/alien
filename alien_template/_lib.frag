@@ -927,3 +927,497 @@ float freqBar(float x, float bandValue, float width, float smoothing) {
     float bar = smoothstep(0.0, smoothing, bandValue - x);
     return bar;
 }
+
+// ============================================================================
+// ADVANCED NOISE (from LYGIA/Book of Shaders)
+// ============================================================================
+
+// Helper functions for advanced noise
+vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+float mod289(float x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+vec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }
+float permute(float x) { return mod289(((x * 34.0) + 1.0) * x); }
+vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+float taylorInvSqrt(float r) { return 1.79284291400159 - 0.85373472095314 * r; }
+vec4 quintic(vec4 x) { return x * x * x * (x * (x * 6.0 - 15.0) + 10.0); }
+vec2 quintic(vec2 x) { return x * x * x * (x * (x * 6.0 - 15.0) + 10.0); }
+
+// 3D Simplex noise (high quality)
+float snoise3(vec3 v) {
+    const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+    const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+    
+    vec3 i = floor(v + dot(v, C.yyy));
+    vec3 x0 = v - i + dot(i, C.xxx);
+    
+    vec3 g = step(x0.yzx, x0.xyz);
+    vec3 l = 1.0 - g;
+    vec3 i1 = min(g.xyz, l.zxy);
+    vec3 i2 = max(g.xyz, l.zxy);
+    
+    vec3 x1 = x0 - i1 + C.xxx;
+    vec3 x2 = x0 - i2 + C.yyy;
+    vec3 x3 = x0 - D.yyy;
+    
+    i = mod289(i);
+    vec4 p = permute(permute(permute(
+        i.z + vec4(0.0, i1.z, i2.z, 1.0))
+        + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+        + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+    
+    float n_ = 0.142857142857;
+    vec3 ns = n_ * D.wyz - D.xzx;
+    
+    vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+    vec4 x_ = floor(j * ns.z);
+    vec4 y_ = floor(j - 7.0 * x_);
+    
+    vec4 x = x_ * ns.x + ns.yyyy;
+    vec4 y = y_ * ns.x + ns.yyyy;
+    vec4 h = 1.0 - abs(x) - abs(y);
+    
+    vec4 b0 = vec4(x.xy, y.xy);
+    vec4 b1 = vec4(x.zw, y.zw);
+    
+    vec4 s0 = floor(b0) * 2.0 + 1.0;
+    vec4 s1 = floor(b1) * 2.0 + 1.0;
+    vec4 sh = -step(h, vec4(0.0));
+    
+    vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
+    vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
+    
+    vec3 p0 = vec3(a0.xy, h.x);
+    vec3 p1 = vec3(a0.zw, h.y);
+    vec3 p2 = vec3(a1.xy, h.z);
+    vec3 p3 = vec3(a1.zw, h.w);
+    
+    vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+    p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+    
+    vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+    m = m * m;
+    return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+}
+
+// Classic Perlin noise 2D
+float cnoise(vec2 P) {
+    vec4 Pi = floor(P.xyxy) + vec4(0.0, 0.0, 1.0, 1.0);
+    vec4 Pf = fract(P.xyxy) - vec4(0.0, 0.0, 1.0, 1.0);
+    Pi = mod289(Pi);
+    vec4 ix = Pi.xzxz;
+    vec4 iy = Pi.yyww;
+    vec4 fx = Pf.xzxz;
+    vec4 fy = Pf.yyww;
+    
+    vec4 i = permute(permute(ix) + iy);
+    vec4 gx = fract(i * (1.0 / 41.0)) * 2.0 - 1.0;
+    vec4 gy = abs(gx) - 0.5;
+    vec4 tx = floor(gx + 0.5);
+    gx = gx - tx;
+    
+    vec2 g00 = vec2(gx.x, gy.x);
+    vec2 g10 = vec2(gx.y, gy.y);
+    vec2 g01 = vec2(gx.z, gy.z);
+    vec2 g11 = vec2(gx.w, gy.w);
+    
+    vec4 norm = taylorInvSqrt(vec4(dot(g00,g00), dot(g01,g01), dot(g10,g10), dot(g11,g11)));
+    g00 *= norm.x; g01 *= norm.y; g10 *= norm.z; g11 *= norm.w;
+    
+    float n00 = dot(g00, vec2(fx.x, fy.x));
+    float n10 = dot(g10, vec2(fx.y, fy.y));
+    float n01 = dot(g01, vec2(fx.z, fy.z));
+    float n11 = dot(g11, vec2(fx.w, fy.w));
+    
+    vec2 fade_xy = quintic(Pf.xy);
+    vec2 n_x = mix(vec2(n00, n01), vec2(n10, n11), fade_xy.x);
+    return 2.3 * mix(n_x.x, n_x.y, fade_xy.y);
+}
+
+// Ridged noise (good for mountains, terrain)
+float ridged(vec2 p, int octaves) {
+    float sum = 0.0;
+    float amp = 0.5;
+    float freq = 1.0;
+    for (int i = 0; i < 8; i++) {
+        if (i >= octaves) break;
+        float n = 1.0 - abs(simplex(p * freq));
+        sum += n * amp;
+        freq *= 2.0;
+        amp *= 0.5;
+    }
+    return sum;
+}
+
+// Turbulence (absolute value fbm)
+float turbulence(vec2 p, int octaves) {
+    float sum = 0.0;
+    float amp = 0.5;
+    float freq = 1.0;
+    for (int i = 0; i < 8; i++) {
+        if (i >= octaves) break;
+        sum += abs(simplex(p * freq)) * amp;
+        freq *= 2.0;
+        amp *= 0.5;
+    }
+    return sum;
+}
+
+// ============================================================================
+// ADDITIONAL 2D SDF SHAPES (from LYGIA)
+// ============================================================================
+
+// Regular polygon SDF
+float sdPoly(vec2 p, int sides) {
+    float a = atan(p.x, p.y) + PI;
+    float r = length(p);
+    float v = TAU / float(sides);
+    return cos(floor(0.5 + a / v) * v - a) * r;
+}
+
+// Heart SDF
+float sdHeart(vec2 p) {
+    p -= vec2(0.0, 0.3);
+    float r = length(p) * 5.0;
+    p = normalize(p);
+    return r - ((p.y * pow(abs(p.x), 0.67)) / (p.y + 1.5) - 2.0 * p.y + 1.26);
+}
+
+// Flower SDF
+float sdFlower(vec2 p, int petals) {
+    p *= 4.0;
+    float r = length(p) * 2.0;
+    float a = atan(p.y, p.x);
+    float v = float(petals) * 0.5;
+    return 1.0 - (abs(cos(a * v)) * 0.5 + 0.5) / r;
+}
+
+// Spiral SDF
+float sdSpiral(vec2 p, float turns) {
+    float r = dot(p, p);
+    float a = atan(p.y, p.x);
+    return abs(sin(fract(log(r) * turns + a * 0.159)));
+}
+
+// Gear SDF
+float sdGear(vec2 p, float r, int teeth, float toothSize) {
+    float a = atan(p.y, p.x);
+    float d = length(p);
+    float tooth = cos(a * float(teeth)) * toothSize;
+    return d - r - tooth;
+}
+
+// Cross SDF (2D)
+float sdCross2D(vec2 p, vec2 b, float r) {
+    p = abs(p);
+    p = (p.y > p.x) ? p.yx : p.xy;
+    vec2 q = p - b;
+    float k = max(q.y, q.x);
+    vec2 w = (k > 0.0) ? q : vec2(b.y - p.x, -k);
+    return sign(k) * length(max(w, 0.0)) + r;
+}
+
+// Moon/crescent SDF
+float sdMoon(vec2 p, float d, float ra, float rb) {
+    p.y = abs(p.y);
+    float a = (ra*ra - rb*rb + d*d) / (2.0*d);
+    float b = sqrt(max(ra*ra - a*a, 0.0));
+    if (d * (p.x*b - p.y*a) > d*d * max(b - p.y, 0.0))
+        return length(p - vec2(a, b));
+    return max(length(p) - ra, -(length(p - vec2(d, 0.0)) - rb));
+}
+
+// Arc SDF
+float sdArc(vec2 p, float ta, float tb, float ra, float rb) {
+    vec2 sca = vec2(sin(ta), cos(ta));
+    vec2 scb = vec2(sin(tb), cos(tb));
+    p = mat2(sca.x, sca.y, -sca.y, sca.x) * p;
+    p.x = abs(p.x);
+    float k = (scb.y * p.x > scb.x * p.y) ? dot(p, scb) : length(p);
+    return sqrt(dot(p,p) + ra*ra - 2.0*ra*k) - rb;
+}
+
+// ============================================================================
+// ADDITIONAL 3D SDF SHAPES (from LYGIA)
+// ============================================================================
+
+// Pyramid SDF
+float sdPyramid(vec3 p, float h) {
+    float m2 = h*h + 0.25;
+    p.xz = abs(p.xz);
+    p.xz = (p.z > p.x) ? p.zx : p.xz;
+    p.xz -= 0.5;
+    
+    vec3 q = vec3(p.z, h*p.y - 0.5*p.x, h*p.x + 0.5*p.y);
+    float s = max(-q.x, 0.0);
+    float t = clamp((q.y - 0.5*p.z) / (m2 + 0.25), 0.0, 1.0);
+    
+    float a = m2 * (q.x + s) * (q.x + s) + q.y * q.y;
+    float b = m2 * (q.x + 0.5*t) * (q.x + 0.5*t) + (q.y - m2*t) * (q.y - m2*t);
+    
+    float d2 = min(q.y, -q.x*m2 - q.y*0.5) > 0.0 ? 0.0 : min(a, b);
+    return sqrt((d2 + q.z*q.z) / m2) * sign(max(q.z, -p.y));
+}
+
+// Hexagonal prism SDF
+float sdHexPrism(vec3 p, vec2 h) {
+    const vec3 k = vec3(-0.8660254, 0.5, 0.57735);
+    p = abs(p);
+    p.xy -= 2.0 * min(dot(k.xy, p.xy), 0.0) * k.xy;
+    vec2 d = vec2(length(p.xy - vec2(clamp(p.x, -k.z*h.x, k.z*h.x), h.x)) * sign(p.y - h.x), p.z - h.y);
+    return min(max(d.x, d.y), 0.0) + length(max(d, 0.0));
+}
+
+// Link/chain SDF
+float sdLink(vec3 p, float le, float r1, float r2) {
+    vec3 q = vec3(p.x, max(abs(p.y) - le, 0.0), p.z);
+    return length(vec2(length(q.xy) - r1, q.z)) - r2;
+}
+
+// Mandelbulb fractal SDF
+vec2 sdMandelbulb(vec3 p) {
+    vec3 z = p;
+    float dr = 1.0;
+    float r = 0.0;
+    float power = 8.0;
+    
+    for (int i = 0; i < 15; i++) {
+        r = length(z);
+        if (r > 2.0) break;
+        
+        float theta = acos(z.z / r);
+        float phi = atan(z.y, z.x);
+        dr = pow(r, power - 1.0) * power * dr + 1.0;
+        
+        float zr = pow(r, power);
+        theta = theta * power;
+        phi = phi * power;
+        
+        z = zr * vec3(sin(theta)*cos(phi), sin(phi)*sin(theta), cos(theta));
+        z += p;
+    }
+    return vec2(0.5 * log(r) * r / dr, float(r < 2.0 ? 1 : 0));
+}
+
+// ============================================================================
+// COLOR UTILITIES (from LYGIA)
+// ============================================================================
+
+// Luminance (perceived brightness)
+float luma(vec3 c) {
+    return dot(c, vec3(0.2126, 0.7152, 0.0722));
+}
+
+// Brightness/contrast adjustment
+vec3 brightnessContrast(vec3 c, float brightness, float contrast) {
+    return (c - 0.5) * contrast + 0.5 + brightness;
+}
+
+// Saturation adjustment
+vec3 saturation(vec3 c, float sat) {
+    float grey = luma(c);
+    return mix(vec3(grey), c, sat);
+}
+
+// Hue shift
+vec3 hueShift(vec3 c, float shift) {
+    vec3 hsv = rgb2hsv(c);
+    hsv.x = fract(hsv.x + shift);
+    return hsv2rgb(hsv);
+}
+
+// Exposure adjustment
+vec3 exposure(vec3 c, float exp) {
+    return c * pow(2.0, exp);
+}
+
+// Additional color palettes
+vec3 ocean(float t) {
+    return pal(t, vec3(0.5, 0.5, 0.5), vec3(0.5, 0.5, 0.5), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.1, 0.2));
+}
+
+vec3 forest(float t) {
+    return pal(t, vec3(0.5, 0.5, 0.5), vec3(0.5, 0.5, 0.5), vec3(1.0, 1.0, 0.5), vec3(0.8, 0.9, 0.3));
+}
+
+vec3 plasma(float t) {
+    return pal(t, vec3(0.5, 0.5, 0.5), vec3(0.5, 0.5, 0.5), vec3(2.0, 1.0, 0.0), vec3(0.5, 0.2, 0.25));
+}
+
+vec3 electric(float t) {
+    return pal(t, vec3(0.5, 0.5, 0.5), vec3(0.5, 0.5, 0.5), vec3(1.0, 1.0, 1.0), vec3(0.3, 0.2, 0.2));
+}
+
+vec3 candy(float t) {
+    return pal(t, vec3(0.8, 0.5, 0.4), vec3(0.2, 0.4, 0.2), vec3(2.0, 1.0, 1.0), vec3(0.0, 0.25, 0.25));
+}
+
+// ============================================================================
+// ADVANCED PATTERNS (from Book of Shaders)
+// ============================================================================
+
+// Brick pattern
+float brick(vec2 p, vec2 size, float offset) {
+    p /= size;
+    p.x += step(1.0, mod(p.y, 2.0)) * offset;
+    p = fract(p);
+    return step(p.x, 0.9) * step(p.y, 0.9);
+}
+
+// Checkerboard
+float checker(vec2 p, float size) {
+    vec2 q = floor(p / size);
+    return mod(q.x + q.y, 2.0);
+}
+
+// Concentric circles
+float rings(vec2 p, float freq) {
+    return sin(length(p) * freq);
+}
+
+// Radial lines
+float radialLines(vec2 p, float count) {
+    float a = atan(p.y, p.x);
+    return sin(a * count);
+}
+
+// Moire pattern
+float moire(vec2 p, float freq1, float freq2) {
+    return sin(p.x * freq1) * sin(p.y * freq2);
+}
+
+// Reaction-diffusion inspired pattern
+float reactionDiffusion(vec2 p, float t, float scale) {
+    float v = 0.0;
+    for (int i = 0; i < 5; i++) {
+        float fi = float(i);
+        vec2 q = p * scale * (1.0 + fi * 0.5);
+        q += vec2(sin(t * 0.3 + fi), cos(t * 0.4 + fi * 1.3));
+        v += sin(q.x + sin(q.y + t * 0.2)) * (1.0 / (1.0 + fi));
+    }
+    return v * 0.5 + 0.5;
+}
+
+// Kaleidoscope transform
+vec2 kaleidoscope(vec2 p, float segments) {
+    float angle = TAU / segments;
+    float a = atan(p.y, p.x);
+    a = mod(a, angle);
+    a = abs(a - angle * 0.5);
+    return length(p) * vec2(cos(a), sin(a));
+}
+
+// ============================================================================
+// GLITCH & DISTORTION EFFECTS
+// ============================================================================
+
+// Digital glitch blocks
+float glitchBlock(vec2 p, float t, float intensity) {
+    vec2 block = floor(p * 10.0);
+    float r = hash(block + floor(t * 10.0));
+    return step(1.0 - intensity, r);
+}
+
+// RGB shift for glitch effect
+vec3 rgbShift(vec2 uv, float amount, float angle) {
+    vec2 dir = vec2(cos(angle), sin(angle)) * amount;
+    // Returns offset UVs for R, G, B channels
+    // Usage: sample texture at uv-dir, uv, uv+dir for R, G, B
+    return vec3(0.0); // Placeholder - needs texture
+}
+
+// Pixelate
+vec2 pixelate(vec2 uv, float pixels) {
+    return floor(uv * pixels) / pixels;
+}
+
+// Wave distortion
+vec2 waveDistort(vec2 uv, float freq, float amp, float t) {
+    uv.x += sin(uv.y * freq + t) * amp;
+    uv.y += sin(uv.x * freq + t) * amp;
+    return uv;
+}
+
+// Barrel distortion (fisheye)
+vec2 barrel(vec2 uv, float amount) {
+    vec2 cc = uv - 0.5;
+    float dist = dot(cc, cc);
+    return uv + cc * dist * amount;
+}
+
+// ============================================================================
+// MOTION & ANIMATION HELPERS
+// ============================================================================
+
+// Smooth step with configurable edges
+float smoothEdge(float edge0, float edge1, float x) {
+    float t = clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
+}
+
+// Exponential impulse (sharp attack, smooth decay)
+float impulse(float k, float x) {
+    float h = k * x;
+    return h * exp(1.0 - h);
+}
+
+// Cubic pulse (smooth bump)
+float cubicPulse(float c, float w, float x) {
+    x = abs(x - c);
+    if (x > w) return 0.0;
+    x /= w;
+    return 1.0 - x * x * (3.0 - 2.0 * x);
+}
+
+// Parabola (symmetric bump)
+float parabola(float x, float k) {
+    return pow(4.0 * x * (1.0 - x), k);
+}
+
+// Power curve (attempt asymmetric bump)
+float pcurve(float x, float a, float b) {
+    float k = pow(a + b, a + b) / (pow(a, a) * pow(b, b));
+    return k * pow(x, a) * pow(1.0 - x, b);
+}
+
+// Sinc function (for ringing effects)
+float sinc(float x, float k) {
+    float a = PI * k * x;
+    return sin(a) / a;
+}
+
+// ============================================================================
+// TEXTURE SYNTHESIS
+// ============================================================================
+
+// Marble texture
+float marble(vec2 p, float t) {
+    float n = fbm(p * 3.0);
+    return sin(p.x * 10.0 + n * 5.0 + t) * 0.5 + 0.5;
+}
+
+// Wood grain texture
+float wood(vec2 p, float rings) {
+    float r = length(p);
+    float n = noise(p * 2.0) * 0.5;
+    return sin((r + n) * rings) * 0.5 + 0.5;
+}
+
+// Fabric/weave texture
+float weave(vec2 p, float scale) {
+    vec2 q = p * scale;
+    float h = sin(q.x * PI) * sin(q.y * PI);
+    float v = sin((q.x + 0.5) * PI) * sin((q.y + 0.5) * PI);
+    return max(h, v) * 0.5 + 0.5;
+}
+
+// Leather/organic texture
+float leather(vec2 p, float scale) {
+    float v = voronoi(p * scale).x;
+    float n = fbm(p * scale * 2.0) * 0.3;
+    return v + n;
+}
+
+// Static/TV noise
+float staticNoise(vec2 p, float t) {
+    return hash(p + t);
+}

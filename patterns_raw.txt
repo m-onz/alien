@@ -5,119 +5,399 @@
   rest_ratio: 0.50
   output: 60 - 64 - 67 -
 
+(interleave - (arp (chord 73 0) 2 4))
+  rest_ratio: 0.20
+  output: - 73 77 80 77
+
+(seq (seq 3 - 72) 8 (euclid (seq 3 - 72) 8) 2 (seq (euclid (seq 3 - 72) 8) (seq - - 72) (seq (cycle 2 8) (euclid (seq 3 - 72) 8) (seq - -) 60 (rep 1 4) 55) 2 (seq (cycle 2 8) (euclid (seq 3 - 72) 8) (seq - -) 60 (seq 62 52 52 (palindrome 67)) - 2)) (seq (euclid (seq 3 - 72) 8) (seq - - 72) (seq (cycle 2 8) (euclid (seq 3 - 72) 8) (seq - -) 60 (rep 1 4) 55) 2 (seq (cycle 2 8) (euclid (seq 3 - 72) 8) (seq - -) 60 (seq 62 52 52 (palindrome 67)) - 2)) (cycle 2 8) (seq (euclid (seq 3 - 72) 8) (seq - - 72) (seq (cycle 2 8) (euclid (seq 3 - 72) 8) (seq - -) 60 (rep 1 4) 55) 2 (seq (cycle 2 8) (euclid (seq 3 - 72) 8) (seq - -) 60 (seq 62 52 52 (palindrome 67)) - 2)))
+  rest_ratio: 0.40
+  output: 3 - 72 8 - - 3 - - - - 72 2 - - 3 - - - - 72 - - 72 2 2 2 2 2 2 2 2 - - 3 - - - - 72 - - 60 1 1 1 1 55 2 2 2 2 2 2 2 2 2 - - 3 - - - - 72 - - 60 62 52 52 67 - 2 - - 3 - - - - 72 - - 72 2 2 2 2 2 2 2 2 - - 3 - - - - 72 - - 60 1 1 1 1 55 2 2 2 2 2 2 2 2 2 - - 3 - - - - 72 - - 60 62 52 52 67 - 2 2 2 2 2 2 2 2 2 - - 3 - - - - 72 - - 72 2 2 2 2 2 2 2 2 - - 3 - - - - 72 - - 60 1 1 1 1 55 2 2 2 2 2 2 2 2 2 - - 3 - - - - 72 - - 60 62 52 52 67 - 2
+
 (interleave - (gate (range 67 79) 3))
   rest_ratio: 0.64
   output: - 67 - - 70 - - 73 - - 76 - - 79
 
-(seq (cycle (seq 60 - (seq - -) - -) 4) (seq - - 71 - 71) - - (seq - 52 64 -) 55)
-  rest_ratio: 0.62
-  output: 60 - - - - - 71 - 71 - - - 52 64 - 55
+(interleave - (reverse (bjork 3 4)))
+  rest_ratio: 0.40
+  output: - - 1 1 1
 
-(maybe (degrade (euclid (seq - - 69 64 62) 8) 25) (reverse (seq - - 52 60 55 -)) 50)
-  rest_ratio: 0.50
-  output: - 55 60 52 - -
+(seq (reverse (seq (drop (seq 65 67 -) 3) (euclid (seq - 69 4 52 - 69) 3) (euclid (seq 71 69 48 52 - 69) 8))) - (seq (drop (seq 65 67 -) 3) (euclid (seq - 69 4 52 - 69) 3) (euclid (seq 71 69 48 52 - 69) 8)) (reverse (seq (drop (seq 65 67 -) 3) (euclid (seq - 69 4 52 - 69) 3) (euclid (seq 71 69 48 52 - 69) 8))) (seq (drop (seq 65 67 -) 3) (euclid (seq - 69 4 52 - 69) 3) (euclid (seq 71 69 48 52 - 69) 8)))
+  rest_ratio: 0.38
+  output: 69 - 52 - 48 69 71 - 4 69 - - - 69 4 - 71 69 48 - 52 - 69 69 - 52 - 48 69 71 - 4 69 - - 69 4 - 71 69 48 - 52 - 69
 
-(seq (euclid (shuffle (degrade (seq 65 - 69 55 64) 50)) 8) (euclid 12 8))
+(seq (seq (take (seq 64 71 - 48 60 64) 1) (palindrome (euclid (seq - 69 72 60 - 72) 8)) (euclid (seq 64 69 72 52 - 69) 8)) - (seq (seq - (seq 69 -) 72 52 (seq - -) 69) (euclid (seq (seq - -) 69 72 52 - 69) 8) (euclid (seq - 69 72 52 - 69) 8)) 2 (euclid (seq - 69 84 52 - 69) 8) (seq (seq - 69 67 - 60 76) (euclid (seq - 69 72 52 - 71) 3) (euclid (seq - 64 72 52 - 69) 8)) 72 (range 62 74))
+  rest_ratio: 0.39
+  output: 64 - - 69 72 - 60 - 72 - 60 - 72 69 - - - 64 69 72 - 52 - 69 - - 69 - 72 52 - - 69 - - - 69 72 52 - 69 - - 69 72 - 52 - 69 2 - - 69 84 - 52 - 69 - 69 67 - 60 76 - 69 72 - - 64 72 - 52 - 69 72 62 63 64 65 66 67 68 69 70 71 72 73 74
+
+(seq (rand 6 0 6) (seq 52 (seq 72 - 52 64) (seq 3 (palindrome (seq 4 62 - 69)) (palindrome (seq 72 - 71)) 2) 3 (palindrome (seq 4 62 - 69)) (seq 4 62 - 69)) (degrade (seq 72 - 52 64) 50) (degrade (seq 72 - 52 64) 50) (seq (seq 3 (palindrome (seq 4 62 - 69)) (palindrome (seq 72 - 71)) 2) - (degrade (seq 72 - 52 64) 50) - (maybe (chord 48 4) (rand 6 0 6) 75)))
+  rest_ratio: 0.30
+  output: 2 5 6 4 4 4 52 72 - 52 64 3 4 62 - 69 - 62 4 72 - 71 - 72 2 3 4 62 - 69 - 62 4 4 62 - 69 72 - 52 64 72 - - - 3 4 62 - 69 - 62 4 72 - 71 - 72 2 - - - - 64 - 48 52 55 59
+
+(seq 60 64 (seq 8 - (palindrome (palindrome (seq 64 62 - - 55 52))) (quantize 1 (prob (seq 60 65 64 68 67 69 71 71) 50)) 4) 69 (seq 8 - (palindrome (palindrome (seq 64 62 - - 55 52))) (quantize 1 (prob (seq 60 - 64 68 67 69 - 71) 50)) 4) 69 (euclid (seq - - 72 52 - 69) 8) (seq (seq - 69 - 52 - 69) (euclid (seq - 69 72 52 - (seq 69 -)) 8) (euclid (seq - 69 72 52 - 64) 8)))
+  rest_ratio: 0.43
+  output: 60 64 8 - 64 62 - - 55 52 55 - - 62 64 62 - - 55 52 55 - - 62 64 - 4 69 8 - 64 62 - - 55 52 55 - - 62 64 62 - - 55 52 55 - - 62 64 - 4 69 - - - 72 - 52 - 69 - 69 - 52 - 69 - - 69 72 52 - 69 - - - 69 72 - 52 - 64
+
+(seq (quantize (transpose (rotate (seq - - 71 64 48 65) 3) 1) (shuffle (slice (seq - 64 72 55) 2 4))) 2 (seq (transpose (rotate (seq - - 71 64 48 65) 3) 1) (slice (seq - 64 72 55) 2 4)) (rotate (seq - - 71 64 48 65) 3) (rotate (seq - - 71 64 48 65) 3) (quantize (transpose (rotate (seq - - 71 64 48 65) 3) 1) (shuffle (slice (seq - 64 72 55) 2 4))))
+  rest_ratio: 0.30
+  output: 72 55 72 - - 72 2 65 49 66 - - 72 72 55 64 48 65 - - 71 64 48 65 - - 71 72 55 72 - - 72
+
+(seq (cycle (seq 52 - (prob (seq - -) 75) 58 -) 4) (seq - - 0 - (chord 64 0)) (filter (seq 62 69 52 52 62)) 69 (rep 8 4) (arp (chord 52 5) 2 4) (euclid (seq - 67 72 52 - 69) 8) (seq (seq - 69 72 (reverse 52) (seq - -) -) (euclid (seq - 69 - 52 - 69) 8) (euclid (seq 71 69 71 52 - 69) 8)))
+  rest_ratio: 0.39
+  output: 52 - - - - - 0 - 64 68 71 62 69 52 52 62 69 8 8 8 8 52 55 59 62 - - 67 72 - 52 - 69 - 69 72 52 - - - - - 69 - - 52 - 69 - 71 69 71 - 52 - 69
+
+(seq (reverse (seq (take (chord 8 1) 3) 2 - 8 - 72)) 69 (reverse (seq (take (chord 8 1) 3) 2 - 8 - 72)) (quantize (seq 65 (seq 48 71 - - 52 65) 16 71 - 48) (mirror (seq 48 71 - 67 52 65))) (seq (take (chord 8 1) 3) 2 - 8 - 72) - 72 (reverse (seq (take (chord 8 1) 3) 2 - 8 - 72)))
+  rest_ratio: 0.28
+  output: 72 - 8 - 2 15 11 8 69 72 - 8 - 2 15 11 8 65 48 71 - - 52 65 - 71 - 48 8 11 15 2 - 8 - 72 - 72 72 - 8 - 2 15 11 8
+
+(seq (seq 55 52 55) (palindrome (seq 72 - 55 52 67 -)) (seq (seq 67 (seq 72 - 55 52 66 -) 72 72 67 69) 55 -) (palindrome (prob (seq 72 - 55 52 67 -) 75)) (euclid 47 8) (mirror (palindrome (seq 72 - 55 52 67 (seq - -)))) (choose 5 64) (euclid (seq - (seq 72 - 55 52 67 -) 72 (seq 72 - 55 52 67 -) - 55) 11))
+  rest_ratio: 0.30
+  output: 55 52 55 72 - 55 52 67 - 67 52 55 - 72 67 72 - 55 52 66 - 72 72 67 69 55 - - - 55 52 67 - 67 52 55 - - 1 1 1 1 1 1 1 1 72 - 55 52 67 - - - 67 52 55 - 72 72 - 55 52 67 - - - 67 52 55 - 72 5 - 72 - 55 52 67 - 72 72 - 55
+
+(seq (seq (filter (seq 62 67 69 - 69 62)) (euclid (seq - 69 4 52 - 69) 3) (euclid (seq 71 69 67 52 69) 8)) (drop (seq 65 67 - -) 2) (drop (seq 65 67 -) 3) (subdiv (seq - 69 4 52 - 69) 3) (seq (seq 65 67 -) - 1 (euclid (seq 71 69 48 52 - 69) 9) (drop (seq 65 67 -) 4)) 67)
+  rest_ratio: 0.35
+  output: 62 67 69 69 62 - 69 4 - 71 - 69 67 - 52 69 - - - - - 69 69 69 4 4 4 52 52 52 - - - 69 69 69 65 67 - - 1 - 71 69 - 48 52 - - 69 67
+
+(seq (seq (euclid (seq - 69 - 1 - 70) 3) (euclid (seq - 76 4 (seq 57 -) - 69) 8 16) 16 (quantize 16 48) 4) (seq (euclid (seq - 69 - 1 - 70) 3) (euclid (seq - 76 4 (seq 57 -) - 69) 8 16) 16 (quantize 16 48) 4) (seq - 76 4 (seq 57 -) - 69) (euclid (seq - 69 - 1 - 70) 3) 16 16)
+  rest_ratio: 0.42
+  output: - 69 - - - 76 4 57 - - 69 16 48 4 - 69 - - - 76 4 57 - - 69 16 48 4 - 76 4 57 - - 69 - 69 - 16 16
+
+(seq (seq 67 65 (seq (reverse 65) (seq 48 - - 72 52 65) - 71 - 48) 36 48 (seq 65 (seq 48 71 - 72 - 65) 16 71 71 48)) (quantize (seq 65 (seq 48 71 - - 40 65) 16 71 - 48) (mirror (seq 48 76 - 67 52 63))) 65 (seq - 18 4 71 (cycle (seq (seq - -) (bjork 3 4) - (bjork 3 5) 4 4) 18) 4) 72 -)
+  rest_ratio: 0.32
+  output: 67 65 65 48 - - 72 52 65 - 71 - 48 36 48 65 48 71 - 72 - 65 16 71 71 48 67 48 67 - - 48 67 - 67 - 48 65 - 18 4 71 - - 1 1 1 - - 1 - 1 - 1 4 4 - - 1 1 4 72 -
+
+(seq 60 - (seq (seq (seq - -) 69 69 - - 69) (euclid (seq 52 - 72 52 - 69) 8) (euclid 2 8) -) (reverse (shuffle (cycle (seq 71 69 64 67 - 55) 3))) (seq - - 73 52 - 69) 69 (bjork 4 4) (seq (seq - 4 72 52 - 48) (euclid (seq - 69 72 52 59 64) 8) (euclid (seq - 69 72 52 - 69 60) 3)))
   rest_ratio: 0.44
-  output: - 64 - - - - - - 1 1 1 1 1 1 1 1
+  output: 60 - - - 69 69 - - 69 - 52 - 72 - 52 - 69 - - - 1 - - - 1 - 64 69 71 - - 73 52 - 69 69 1 1 1 1 - 4 72 52 - 48 - - 69 72 - 52 59 64 - 69 72
 
-(euclid (seq 4 - (take (chord 69 1) 3) - 4 4) 4 3)
+(seq (seq 55 52 55) (palindrome (seq 72 - (reverse 55) 52 67 -)) (seq (seq 67 (seq 75 - 55 52 67 71) 72 69 67 69) 55 -) (palindrome (seq 72 - 55 52 67 (seq - -))) 69 (mirror (shuffle (seq - 71 52 - -))) (palindrome -) (euclid (seq - (seq 72 - 55 52 67 -) 8 (seq 72 - 55 52 67 -) 55 55) 8))
+  rest_ratio: 0.33
+  output: 55 52 55 72 - 55 52 67 - 67 52 55 - 72 67 75 - 55 52 67 71 72 69 67 69 55 - 72 - 55 52 67 - - - 67 52 55 - 72 69 - 71 - 52 - - 52 - 71 - - - 72 - 55 52 67 - 8
+
+(seq (seq 55 52 55) - (seq (seq 1 (seq 2 69 55 52 67 -) 72 72 67 69) 57 40) (palindrome (drop (seq 64 - - 60 71 71) 2)) (euclid 66 6) (mirror (palindrome (seq 72 - 55 52 67 -))) (palindrome (seq - - 55 52 70 64)) (euclid (seq - 64 72 (seq 72 (seq - -) - 57 60 (seq - -)) - 55) 3) 3)
+  rest_ratio: 0.22
+  output: 55 52 55 - 1 2 69 55 52 67 - 72 72 67 69 57 40 - 60 71 71 71 60 - 1 1 1 1 1 1 72 - 55 52 67 - 67 52 55 - 72 72 - 55 52 67 - 67 52 55 - 72 - - 55 52 70 64 70 52 55 - - - 64 72 3
+
+(seq (seq 67 62 (seq - 4 69 - 72) 72 -) (seq 64 (seq 67 64 (seq 60 4 60 - 67) (seq 60 71 55 - 67) -) - - 60 (seq 67 62 (seq 60 4 60 - 67) (seq 60 71 55 - 67) -) 67 -) (seq 55 69 66 47 52 - -) (palindrome (subdiv (seq - 69 65 52 60 69) 1)) (seq 69 - 8 72 (seq 74 -)) 4)
+  rest_ratio: 0.27
+  output: 67 62 - 4 69 - 72 72 - 64 67 64 60 4 60 - 67 60 71 55 - 67 - - - 60 67 62 60 4 60 - 67 60 71 55 - 67 - 67 - 55 69 66 47 52 - - - 69 65 52 60 69 60 52 65 69 - 69 - 8 72 74 - 4
+
+(seq (choose 5 -) (seq - (seq 48 78 67 - 52 63) 2 (palindrome 71) - 48) (quantize (seq - (seq 48 71 - - 52 65) 16 71 - 48) (mirror (seq 48 71 (seq - -) - 52 (palindrome 65)))) (seq 65 (seq 48 71 - - 67 65) 16 60 71 48) (seq 65 (seq - 71 - - 63) (seq 16 -) 76 - 48 4) 48)
+  rest_ratio: 0.34
+  output: - - 48 78 67 - 52 63 2 71 - 48 - 48 71 - - 52 65 - 71 - 48 65 48 71 - - 67 65 16 60 71 48 65 - 71 - - 63 16 - 76 - 48 4 48
+
+(seq (reverse (seq 60 - (seq 3 (seq 2 52)))) - (choose (chord 60 0) (reverse (seq 60 71 60 - 67))) 60 (seq (seq 63 8 (seq (seq 72 - 71 52 -) (seq 2 -))) (seq 2 -) 1 (seq 72 - - 52 -) (slice (seq - 48 52 62 - 69) 2 6)) (chord 60 0))
+  rest_ratio: 0.31
+  output: 52 2 3 - 60 - 67 - 60 71 60 60 63 8 72 - 71 52 - 2 - 2 - 1 72 - - 52 - 52 62 - 69 60 64 67
+
+(seq (seq (reverse (euclid (seq - 69 72 52 - 69) 8)) (euclid (seq - 69 72 52 - 69) 8) (seq - 69 72 52 - 69) 1 (seq 5 (seq - -) 1 57 69) 4) 72 (reverse (prob (euclid (seq - 69 72 52 - 69) 8) 75)) (euclid (seq - 69 5 52 (seq - -) 16) 8) - 1)
+  rest_ratio: 0.45
+  output: 69 - 52 - 72 69 - - - - 69 72 - 52 - 69 - 69 72 52 - 69 1 5 - - 1 57 69 4 72 69 - 52 - - 69 - - - - 69 5 52 - - 16 - 1
+
+(seq 65 3 (seq 60 8 (seq (seq - 69 72 52 - 69) (euclid (seq - 69 72 52 - 69) 8) (euclid (seq - 69 72 52 - 69) 8)) 65 (seq - 69 72 52 - 67) (seq 67 60 52) 53 (seq 60 - (euclid (seq 67 69 72 52 - 69) 8))) - (maybe (chord 48 4) (rand 8 0 6) 75))
+  rest_ratio: 0.30
+  output: 65 3 60 8 - 69 72 52 - 69 - - 69 72 - 52 - 69 - - 69 72 - 52 - 69 65 - 69 72 52 - 67 67 60 52 53 60 - - 67 69 72 - 52 - 69 - 5 0 2 2 3 0 0 5
+
+(seq (palindrome (gate (transpose 4 12) 4)) 8 64 71 (seq - 69 72 52 71 - 8) 70 (euclid (seq 69 72 52 (seq - (seq - -)) 69) 8) (seq (drop (seq 55 - 65 52) 2) (euclid (seq - 2 72 52 - 69) 8) (euclid (seq (seq - -) 69 5 52 - 69) 8)))
+  rest_ratio: 0.37
+  output: 16 8 64 71 - 69 72 52 71 - 8 70 - 69 72 52 - - - 69 65 52 - - 2 72 - 52 - 69 - - - 69 5 52 - 69
+
+(seq 60 - 49 (quantize (seq 65 (drop (seq 52 65 60 - 72 67) 4) 16 71 - 48) (mirror (seq 41 3 - 67 52 72))) (seq - - 73 52 - 69) - (bjork 4 4) (seq (seq - 4 72 52 - 48) (euclid (seq - 69 72 52 59 64) 8) (euclid (seq - 69 72 52 - 69 60) 3)))
+  rest_ratio: 0.32
+  output: 60 - 49 67 72 67 3 72 - 52 - - 73 52 - 69 - 1 1 1 1 - 4 72 52 - 48 - - 69 72 - 52 59 64 - 69 72
+
+(seq (seq (prob (seq 48 71 - 67 - -) 50) (seq - -) 53 (quantize (seq 65 (seq 48 71 - - 53 63) 16 71 - 48) (mirror (seq 48 3 - 74 52 77))) (quantize (seq 77 (seq 45 71 - - 8 65) 28 71 - 48) (rotate (seq 71 48 - 65 -) 3)) 71) 48 69 48 55)
+  rest_ratio: 0.42
+  output: - - - - - - - - 53 74 48 74 - - 52 74 3 74 - 48 71 48 71 - - - 65 48 71 - 48 71 48 69 48 55
+
+(seq (seq (reverse (euclid (seq - 64 - 52 - 69 -) 8)) (euclid (seq 48 69 16 52 - 70) 8) (seq - 69 72 52 - 69) (subdiv (seq - 69 72 52 - 69) 1) 3 4) 8 (choose (chord 60 0) (reverse (seq 60 71 60 - 67))) (euclid 5 8) - (chord 60 0))
+  rest_ratio: 0.35
+  output: - 69 - 52 - 64 - - - 48 69 16 - 52 - 70 - 69 72 52 - 69 - 69 72 52 - 69 3 4 8 60 64 67 - 1 - 1 1 - 1 1 - 60 64 67
+
+(seq (seq 48 71 - 67 - -) 70 48 (quantize (seq 65 (seq 48 67 - (seq - -) 52 65) 16 4 - 48) (mirror (seq 48 3 - 67 52 77))) (quantize (seq 77 (seq 48 71 - - 52 65) 28 71 (seq - -) 48) (mirror (seq 48 71 - 67 52 65 4))) -)
+  rest_ratio: 0.36
+  output: 48 71 - 67 - - 70 48 67 48 67 - - - 52 67 3 3 - 48 71 48 71 - - 52 65 48 71 - - 48 -
+
+(seq (seq 60) 3 (seq (seq 62 69 72 52 67 69) (euclid (seq - 69 (seq 72 -) 52 - 69) 16) (euclid (seq 65 70 80 52 - 64) 8)) 69 (rep 72 4) - (euclid (seq (seq - -) 67 64 67 - 69) 8) (arp (chord 55 5) 0 8) 62)
+  rest_ratio: 0.36
+  output: 60 3 62 69 72 52 67 69 - - - - 69 - 72 - - - - 52 - - - 69 - 65 70 80 - 52 - 64 69 72 72 72 72 - - - - 67 64 67 - 69 55 58 62 65 55 58 62 65 62
+
+(seq 65 - (maybe (degrade (euclid (seq 48 - 69 64 62) 8) 35) (reverse (seq - - 52 1 55 72)) 50) (reverse (seq - - 52 1 55 72)) 50 (maybe (degrade (euclid (seq 48 - 69 64 62) 8) 35) (reverse (seq - - 52 1 55 72)) 50))
+  rest_ratio: 0.33
+  output: 65 - 72 55 1 52 - - 72 55 1 52 - - 50 72 55 1 52 - -
+
+(seq (reverse (euclid (seq - 57 72 52 - 69) 8)) (euclid (seq - 69 71 52 - 69) 11) 71 (seq - 71 4 4 (cycle (seq (seq - -) (bjork 3 4) 55 (bjork 3 5) 4 4) 18) 4) (prob (take (seq 52 52 69) 3) 50) -)
+  rest_ratio: 0.47
+  output: 69 - 52 - 72 57 - - - - - 69 - 71 - 52 - - 69 71 - 71 4 4 - - 1 1 1 - 55 1 - 1 - 1 4 4 - - 1 1 4 - - 69 -
+
+(seq (seq 1 (palindrome -) (palindrome (seq - 62 - 48)) (quantize (palindrome (seq - 60 52 5)) (seq - (palindrome 64) 62 - 67 69 71 (reverse 72))) 72) 60 (seq 1 (palindrome -) (palindrome (seq - 62 - 48)) (quantize (palindrome (seq - 60 52 5)) (seq - (palindrome 64) 62 - 67 69 71 (reverse 72))) 72) (seq 1 (palindrome -) (palindrome (seq - 62 - 48)) (quantize (palindrome (seq - 60 52 5)) (seq - (palindrome 64) 62 - 67 69 71 (reverse 72))) 72) (palindrome -))
+  rest_ratio: 0.47
+  output: 1 - - 62 - 48 - 62 - - 62 62 - 62 62 - 72 60 1 - - 62 - 48 - 62 - - 62 62 - 62 62 - 72 1 - - 62 - 48 - 62 - - 62 62 - 62 62 - 72 -
+
+(seq (seq (palindrome 55) (degrade (seq - 72 67) 75) (drop (seq - - 70) 3) (seq - - 65 71 77) -) 52 (seq (palindrome 55) (degrade (seq - 72 67) 87) (drop (seq 72 55 70) 3) (seq 8 - 65 71 77) -) 55 3)
+  rest_ratio: 0.43
+  output: 55 - - - - - 65 71 77 - 52 55 - - 67 8 - 65 71 77 - 55 3
+
+(seq (seq 60 -) 3 (seq (seq 62 69 72 52 - 69) (euclid (seq - 69 (seq 72 -) 52 - 69) 16) (euclid (seq 65 70 80 52 - 69) 8)) 69 (rep 72 4) 69 (euclid (seq - 69 64 67 - 69) 8) (rep 2 2) -)
+  rest_ratio: 0.44
+  output: 60 - 3 62 69 72 52 - 69 - - - - 69 - 72 - - - - 52 - - - 69 - 65 70 80 - 52 - 69 69 72 72 72 72 69 - - 69 64 - 67 - 69 2 2 -
+
+(seq (choose 2 2) (mirror (euclid (seq 52 55 72) 4 48)) - (reverse (reverse (seq 69 67 69 71 -))) (quantize (seq 65 (cycle (seq - 65 62 72) 3) - 71 - 48) (mirror (seq 48 71 67 67 52 65))) -)
+  rest_ratio: 0.33
+  output: 2 - 52 55 72 72 55 52 - - 69 67 69 71 - 65 - 65 65 - 71 - 48 -
+
+(quantize (transpose (rotate (seq - - 71 64 48 65) 4) 5) (seq (transpose (rotate (seq - - 71 64 48 65) 4) 5) 62 66 (reverse (seq - 69 55)) (transpose (rotate (seq - - 71 64 48 65) 4) 5) 5 55 72))
+  rest_ratio: 0.33
+  output: 76 69 53 70 - -
+
+(seq (reverse (euclid (seq - 69 72 53 - 69) 8 5)) (euclid (seq - 69 72 - - 67) 8) (seq - 70 16 52 - 69) (subdiv (seq - 69 72 52 (seq - -) 69) 1) (seq (palindrome 69) - 1 5 62) -)
+  rest_ratio: 0.46
+  output: - 69 - 53 - 72 69 - - - 69 72 - - - 67 - 70 16 52 - 69 - 69 72 52 - - 69 69 - 1 5 62 -
+
+(seq (reverse 65) 65 (reverse (seq (take (chord 8 1) 3) 2 - 8 - 72)) 72 (seq (take (chord 8 1) 3) 2 - 8 - -) 4 72 (reverse (seq (take (chord 8 1) 3) 2 - 8 - 72)))
+  rest_ratio: 0.24
+  output: 65 65 72 - 8 - 2 15 11 8 72 8 11 15 2 - 8 - - 4 72 72 - 8 - 2 15 11 8
+
+(seq (cycle (palindrome (seq 52 - (seq - -) 55 -)) 4) (choose (gate (seq - - 52 52 62 -) 4) (arp (chord 62 4) 2 16) (seq 16 16 - 16)) 4 - 4 (arp (chord 52 5) 2 4))
+  rest_ratio: 0.33
+  output: 52 - - - 16 16 - 16 4 - 4 52 55 59 62
+
+(seq (palindrome -) 52 (seq (seq - 69 72 52 - 69) (euclid (seq - 69 72 52 - -) 8) (euclid (seq - 69 - 52 - 69) 8)) 52 (euclid (seq - 69 72 49 - 69) 8) 50 72 50)
+  rest_ratio: 0.47
+  output: - 52 - 69 72 52 - 69 - - 69 72 - 52 - - - - 69 - - 52 - 69 52 - - 69 72 - 49 - 69 50 72 50
+
+(prob (seq (shuffle (seq - - - 67)) (drop (seq 64 71 60) 3) 2 (chord 62 5) (seq 65 (seq 48 71 - - 52 65) 16 71 - 48) (arp (chord 54 5) 2 4)) 75)
+  rest_ratio: 0.42
+  output: - 67 - - 2 62 65 - 72 65 48 71 - - - 65 16 - - 48 54 57 - 64
+
+(seq (reverse (seq 60 (palindrome 8) (drop (seq - 72 - 72 -) 1))) 2 (choose (chord 60 0) (reverse (seq 60 71 60 - 67))) 60 (seq (seq 60 8 (seq (seq 72 - 71 52 -) (seq 2 -))) (seq (seq 2 -) -) 1 (seq 72 - 71 - -) (seq 60 8 (seq (seq 72 - 71 52 -) (seq 2 -)))) (chord 60 0))
+  rest_ratio: 0.33
+  output: - 72 - 72 8 60 2 67 - 60 71 60 60 60 8 72 - 71 52 - 2 - 2 - - 1 72 - 71 - - 60 8 72 - 71 52 - 2 - 60 64 67
+
+(seq (seq 4 - (bjork 3 4) - 4 4) (palindrome (seq 4 (rep 67 2) (seq 4 - (bjork 3 4) - 4 4) - (seq 2 - (bjork 3 4) 4 4 4) - 72)) (seq - 4 (seq 4 (rep 67 2) (seq 4 - (bjork 3 4) - 4 4) - (seq 2 - (bjork 3 4) 4 4 4) - 72) (rep 67 2) 4 2 - (seq 4 - (bjork 3 4) - 4 4)))
+  rest_ratio: 0.30
+  output: 4 - 1 1 1 - - 4 4 4 67 67 4 - 1 1 1 - - 4 4 - 2 - 1 1 1 - 4 4 4 - 72 - 4 4 4 - 1 1 1 - 2 - 4 4 - - 1 1 1 - 4 67 67 4 - 4 4 67 67 4 - 1 1 1 - - 4 4 - 2 - 1 1 1 - 4 4 4 - 72 67 67 4 2 - 4 - 1 1 1 - - 4 4
+
+(reverse (seq (transpose (rotate (seq - - 71 64 48 65) 4) 5) 62 64 (reverse (seq 62 69 55)) (transpose (rotate (seq - - - 64 48 -) 4) 5) 5 52 (palindrome 72)))
+  rest_ratio: 0.30
+  output: 72 52 5 - - - 53 69 - 62 69 55 64 62 - - 70 53 69 76
+
+(seq 57 8 (seq (seq - 69 72 - (seq - -) (palindrome 69)) (euclid (seq - 69 72 52 - 69) 8) (degrade (seq - 71 71 64 67 64) 50)) 69 (rep (reverse 8) 4) 69 (euclid (seq - 67 72 52 48 -) 8) (seq (seq - 69 72 (reverse 57) - 69) (euclid (seq - 69 72 51 - 69) 8) (euclid (seq - 69 71 52 - 69) 8)))
+  rest_ratio: 0.41
+  output: 57 8 - 69 72 - - - 69 - - 69 72 - 52 - 69 - 71 71 64 - 64 69 8 8 8 8 69 - - 67 72 - 52 48 - - 69 72 57 - 69 - - 69 72 - 51 - 69 - - 69 71 - 52 - 69
+
+(seq 65 8 (seq 60 (seq 64 65) (seq (seq 67 - - 52 - 2) (euclid (seq - 62 72 52 67 69) 8 8) (euclid (seq - 69 72 52 72 4) 8)) 72 (seq - 69 - 47 - 67) (every (seq 64 52 48 - 72 52) 3) 53 (seq 60 (seq - (seq - -)) (euclid (seq 4 - 72 52 71 3) 8))) 71 (arp (chord 64 1) 1 16))
+  rest_ratio: 0.29
+  output: 65 8 60 64 65 67 - - 52 - 2 - - 62 72 - 52 67 69 - - 69 72 - 52 72 4 72 - 69 - 47 - 67 64 - 53 60 - - - - 4 - 72 - 52 71 3 71 71 67 64 71 67 64 71 67 64 71 67 64 71 67 64 71
+
+(seq (range 65 69) (prob (arp (chord 48 5) 2 4) 75) - (rotate (subdiv (seq - 60 (seq - -) 71) 4) 3) (palindrome (seq - - 65 65)))
+  rest_ratio: 0.49
+  output: 65 66 67 68 69 - 51 55 58 - 71 71 71 - - - - 60 60 60 60 - - - - - - - - 71 - - 65 65 65 - -
+
+(seq - (range 52 65) (seq (seq 48 71 - 67 52 65) (mirror (euclid (seq 52 55 72) 4 48)) - (reverse (seq 1 69 48 65)) (quantize (seq 65 (seq 48 71 - - 52 65) 16 71 - 48) (mirror (seq 48 71 - 67 52 65))) -) (seq 1 69 48 65) (seq (seq 48 71 - 67 52 65) (mirror (euclid (seq 52 55 72) 4 48)) - (reverse (seq 1 69 48 65)) (quantize (seq 65 (seq 48 71 - - 52 65) 16 71 - 48) (mirror (seq 48 71 - 67 52 65))) -))
+  rest_ratio: 0.23
+  output: - 52 53 54 55 56 57 58 59 60 61 62 63 64 65 48 71 - 67 52 65 - 52 55 72 72 55 52 - - 65 48 69 1 65 48 71 - - 52 65 - 71 - 48 - 1 69 48 65 48 71 - 67 52 65 - 52 55 72 72 55 52 - - 65 48 69 1 65 48 71 - - 52 65 - 71 - 48 -
+
+(seq (filter (seq 52 - - - -)) 52 (seq (seq - (seq 69 -) 72 52 - 69) (euclid (seq (seq - -) 69 72 52 - 69) 8) (euclid 8 8)) 2 (euclid (seq - 69 84 - - 69) 8) (seq (seq - 67 - 49 60 69) (euclid (seq - 69 72 52 - 71) 3) (euclid 3 8)) 72 (range 62 74))
+  rest_ratio: 0.31
+  output: 52 52 - 69 - 72 52 - 69 - - - 69 72 52 - 69 1 1 1 1 1 1 1 1 2 - - 69 84 - - - 69 - 67 - 49 60 69 - 69 72 - - 1 - - 1 - 1 72 62 63 64 65 66 67 68 69 70 71 72 73 74
+
+(seq - (seq 60 64 - (reverse (shuffle (seq 71 55 - 62 -))) 48) (seq (seq - 69 72 52 - (palindrome 69)) (euclid (seq - 69 72 52 - 69) 8) (prob (seq - 65 69 62 69 71) 25) 62) (reverse (shuffle (seq (palindrome 71) 57 - 62 -))) (seq - - 72 52 - 69) 69 (euclid (seq - 69 74 52 - 69) 8) (seq (every (seq 72 65 - 67 -) 4) (euclid (seq - 69 72 52 71 69) 8) (euclid (seq - 69 72 52 - 69) 8)))
+  rest_ratio: 0.46
+  output: - 60 64 - 55 62 - 71 - 48 - 69 72 52 - 69 - - 69 72 - 52 - 69 - - - - - 71 62 71 - - 57 62 - - 72 52 - 69 69 - - 69 74 - 52 - 69 72 - - - 69 72 - 52 71 69 - - 69 72 - 52 - 69
+
+(seq (take (chord 69 1) 3) (seq 4 - (take (chord 69 1) 3) - 4 11 -) (quantize (palindrome (seq 64 48)) (seq 60 - 64 65 - 76 (reverse -) 72)) 4 (seq 8 - (palindrome (palindrome (seq 64 62 - - 55 52))) (quantize 1 (prob (seq 60 62 64 60 67 69 71 71 -) 50)) 4))
+  rest_ratio: 0.32
+  output: 69 72 76 4 - 69 72 76 - 4 11 - 64 60 64 4 8 - 64 62 - - 55 52 55 - - 62 64 62 - - 55 52 55 - - 62 64 - 4
+
+(seq 8 (seq 60 (drop (seq 69 64 67 52) 1) (seq 16 -) 71 - 53) (seq (degrade (seq - 71 - 60) 75) (reverse 62) (prob (seq 65 71 62 2 - 72) 75) (seq - -) (mirror (seq 52 (seq - -) (seq 69 -) -)) 69 76 64) (mirror (seq - - 67 - 71)) 60)
+  rest_ratio: 0.43
+  output: 8 60 64 67 52 16 - 71 - 53 - 71 - 60 62 65 71 62 2 - 72 - - 52 - - 69 - - - - 69 - - 52 69 76 64 - - 67 - 71 71 - 67 - - 60
+
+(seq 72 72 (gate (seq - 72 72 (palindrome (seq - 67 - 71 48 72)) -) 2) (degrade 72 18) (seq 60 (arp (chord 52 5) 2 4)))
+  rest_ratio: 0.39
+  output: 72 72 - - 72 - 67 - 71 - 72 - 71 - 67 - - 72 60 52 55 59 62
+
+(seq (prob (palindrome (seq 67 62 (seq 72 4 69 - -) 72 -)) 75) (seq 61 (seq 67 63 (seq 60 4 60 60 67) (seq 60 71 55 - 67) -) - - 60 (seq 79 62 (seq 60 4 60 55 67) (seq 60 71 62 - -) -) 67 -) (seq (seq - -) 64 66 48 47 69) (seq 69 - 11 72 74) 4)
+  rest_ratio: 0.34
+  output: - - 72 - 69 - - 72 - 72 - - 69 - 72 - 67 61 67 63 60 4 60 60 67 60 71 55 - 67 - - - 60 79 62 60 4 60 55 67 60 71 62 - - - 67 - - - 64 66 48 47 69 69 - 11 72 74 4
+
+(seq (filter (seq 52 - - - -)) 52 49 2 (quantize (seq 77 (seq 48 71 69 - 60 65) 28 71 - 48) (mirror (seq 48 - - 67 52 (palindrome 65) 4))) (seq (seq - 67 - 49 60 69) (euclid (seq - 69 72 52 - 71) 3) (euclid 3 8)) 72 (range 62 74))
+  rest_ratio: 0.22
+  output: 52 52 49 2 67 48 67 67 - 65 65 48 67 - 48 - 67 - 49 60 69 - 69 72 - - 1 - - 1 - 1 72 62 63 64 65 66 67 68 69 70 71 72 73 74
+
+(seq (seq 4 - (take (chord 69 1) 3) - 4 -) (prob (euclid 3 8) 75) (seq - -) - (chord 69 1) 55 2)
+  rest_ratio: 0.46
+  output: 4 - 69 72 76 - 4 - - - 1 - - 1 - 1 - - - 69 72 76 55 2
+
+(seq 60 60 (rotate 4 14) (seq - - 4 71 (cycle (seq (seq - -) (bjork 3 4) - (bjork 3 5) 4 4) 18) 4) 65 (quantize (reverse (seq 65 52 2 (seq - -) -)) (seq 65 62 64 67 - 71 72)) (gate (seq 3 70 4 - -) 1) 60)
+  rest_ratio: 0.41
+  output: 60 60 4 - - 4 71 - - 1 1 1 - - 1 - 1 - 1 4 4 - - 1 1 4 65 - - - - 62 65 3 70 4 - - 60
+
+(seq (quantize 67 (palindrome (seq - 62 57 48))) 3 (palindrome (seq - 62 57 48)) (seq - (bjork 3 4) (palindrome (seq - - 52 48)) (quantize (palindrome (seq - 62 57 48)) (seq 60 62 2 67 69 71 -)) 5 4) (bjork 3 4) 3)
+  rest_ratio: 0.31
+  output: 62 3 - 62 57 48 57 62 - - 1 1 1 - - - 52 48 52 - - - 62 60 60 60 62 - 5 4 1 1 1 - 3
+
+(seq (seq (seq - 69 72 52 - 69) (prob (seq - 72 62 - 65) 25) (euclid (seq - 69 72 52 - 69) 8)) 4 (rotate (seq 69 - 62 71) 2) 77 (euclid (seq 52 69 72 52 - 69) 8) (seq (seq - 69 72 52 - 69) (euclid (seq - 69 72 52 - 72) 8 3) (euclid (seq - 69 72 52 - 69 -) 8)) 72 (euclid (seq - 69 71 52 - 69) 8) 69)
+  rest_ratio: 0.45
+  output: - 69 72 52 - 69 - - - - - - - 69 72 - 52 - 69 4 62 71 69 - 77 - 52 69 72 - 52 - 69 - 69 72 52 - 69 - - 69 72 52 - - 72 - - 69 72 52 - 69 - 72 - - 69 71 - 52 - 69 69
+
+(seq (range 65 69) (degrade (seq 62 67 - 67 67 72) 25) - (quantize 69 4) (palindrome (seq - - 65 -)))
+  rest_ratio: 0.35
+  output: 65 66 67 68 69 62 67 - 67 67 72 - 4 - - 65 - 65 - -
+
+(seq (cycle 2 8) (prob (euclid 5 8) 75) (seq 12 -) - (seq 5 5 (euclid 5 8) -) 15 60)
+  rest_ratio: 0.31
+  output: 2 2 2 2 2 2 2 2 - 1 - 1 1 - - 1 12 - - 5 5 - 1 - 1 1 - 1 1 - 15 60
+
+(seq (palindrome (reverse (rep 3 2))) 2 (seq (seq 72 - 71 4 -) (seq 2 -)) (seq 1 69 48 65) (seq (seq 48 71 - 67 52 65) (mirror (euclid (seq 52 55 72) 4 48)) - (reverse (seq 1 69 48 65)) (quantize (seq 65 (seq 48 71 - - 52 65) 16 71 - 48) (mirror (seq 48 71 - 67 52 65))) -) 64)
+  rest_ratio: 0.26
+  output: 3 3 3 2 72 - 71 4 - 2 - 1 69 48 65 48 71 - 67 52 65 - 52 55 72 72 55 52 - - 65 48 69 1 65 48 71 - - 52 65 - 71 - 48 - 64
+
+(seq (reverse 69) 1 (seq - 76 1 (reverse 69) 61 (degrade - 1) (reverse 4)) (rotate (reverse 69) 1) (seq 61 69 72 4 1 69) 76 (palindrome (seq - 76 1 (reverse 69) 61 (degrade - 1) (reverse 4))) -)
+  rest_ratio: 0.23
+  output: 69 1 - 76 1 69 61 - 4 69 61 69 72 4 1 69 76 - 76 1 69 61 - 4 - 61 69 1 76 - -
+
+(seq (euclid (shuffle (degrade (seq 65 - 69 55 64) 50)) 8) - - (arp (chord 65 1) 1 4))
+  rest_ratio: 0.57
+  output: - - - 65 55 - - - - - 72 68 65 72
+
+(seq (seq 70 65 65 64 64 -) - - (chord 65 1) - (seq - (chord 64 0) (chord 65 1)))
+  rest_ratio: 0.26
+  output: 70 65 65 64 64 - - - 65 68 72 - - 64 68 71 65 68 72
+
+(seq 67 (bjork 3 2) (seq (euclid (filter (seq 48 64 - 72 62 48)) 5) (reverse 62) (prob (seq 65 71 69 2 - 72) 75) - (mirror (seq 52 - (seq 69 -) -)) 69 76 -) 2 - -)
+  rest_ratio: 0.44
+  output: 67 1 1 48 64 72 62 48 62 - - 69 - - 72 - 52 - 69 - - - - 69 - 52 69 76 - 2 - -
+
+(seq (seq 67 3 (seq 60 4 6 - (seq 67 -)) (prob (seq 60 71 55 - 67) 50) 48) (seq 67 (seq 67 62 (seq 60 4 60 72 (reverse 5)) (seq (reverse 60) 71 55 60 67 -) -) - - 67 (seq (seq - -) 62 (slice (seq - 67 -) 2 5) (seq 60 64 55 - 67) -) 67 36))
+  rest_ratio: 0.34
+  output: 67 3 60 4 6 - 67 - - - - - 67 48 67 67 62 60 4 60 72 5 60 71 55 60 67 - - - - 67 - - 62 - 60 64 55 - 67 - 67 36
+
+(seq 1 (palindrome -) (palindrome (filter (seq 62 - - 65 - 72))) (quantize (palindrome (prob (seq - 60 52 5) 50)) (seq 60 57 - 1 67 64 71 72)) (seq 60 - 64 65 - 69 (reverse -) 72))
+  rest_ratio: 0.41
+  output: 1 - 62 65 72 65 62 - - 57 - 57 - - 60 - 64 65 - 69 - 72
+
+(seq - 72 - (palindrome (arp (chord 65 1) 1 4)) (euclid 52 2) (mirror (palindrome 16)) (palindrome -) (euclid (seq - (seq - - 55 52 - - 16) 72 (seq 48 53 51 72) 62 55) 8) 72)
+  rest_ratio: 0.33
+  output: - 72 - 72 68 65 72 65 68 72 1 1 16 16 - - - - 55 52 - - 16 72
+
+(seq 72 3 (euclid 7 9) (degrade (seq 45 - (seq - -) 68 -) 25) (seq 69 62))
+  rest_ratio: 0.37
+  output: 72 3 - 1 1 1 - 1 1 1 1 45 - - - - - 69 62
+
+(seq - 2 (seq (seq 72 (seq - -) 71 57 -) 1) (arp (chord 65 1) 1 4) (seq (seq 60 8 (seq (seq 72 - 71 52 -) (seq 2 -))) (seq 2 -) 1 (seq - - 71 52 -) (seq 60 16 (seq (seq 72 - 71 52 -) (seq 2 -)))) 67 60)
+  rest_ratio: 0.34
+  output: - 2 72 - - 71 57 - 1 72 68 65 72 60 8 72 - 71 52 - 2 - 2 - 1 - - 71 52 - 60 16 72 - 71 52 - 2 - 67 60
+
+(seq (seq - -) (mirror (euclid (seq 52 8 72) 4 60)) - (chord 55 0) 61)
+  rest_ratio: 0.33
+  output: - - - 52 8 72 72 8 52 - - 55 59 62 61
+
+(seq (bjork 2 4) (seq 3 65 75) (seq (cycle 2 8) (euclid (seq 3 - 72) 8) (seq - -) 60 (seq 62 52 - (palindrome 67)) 8) 2 (seq (cycle 2 8) (euclid (seq 3 - 72) 8) (seq - -) 60 (seq 62 52 - (palindrome -)) 55))
+  rest_ratio: 0.38
+  output: 1 - 1 - 3 65 75 2 2 2 2 2 2 2 2 - - 3 - - - - 72 - - 60 62 52 - 67 8 2 2 2 2 2 2 2 2 2 - - 3 - - - - 72 - - 60 62 52 - - 55
+
+(seq (reverse (seq 60 8 (seq (seq 1 - 71 52 -) (seq 2 52)))) 2 (seq (chord 62 4) (seq - -)) 60 (seq - 62 52 52 (palindrome 62) -) 16)
   rest_ratio: 0.25
-  output: 4 - 69 72
+  output: 52 2 - 52 71 - 1 8 60 2 62 66 69 73 - - 60 - 62 52 52 62 - 16
+
+(seq 71 (palindrome (seq 64 - 60 (seq - 69 72 52 - 4) 67 -)) (seq (every (seq 69 65 64) 1) - -) (palindrome (seq (seq 72 -) 4 54 51 67 -)) (euclid - 8) (mirror (palindrome (seq 72 71 55 52 67 69))) (palindrome 60) (euclid (seq 55 (seq 77 - 55 40 55 -) 69 (seq 72 - - 52 - 55) - 55) 8))
+  rest_ratio: 0.28
+  output: 71 64 - 60 - 69 72 52 - 4 67 - 67 4 - 52 72 69 - 60 - 64 69 65 64 - - 72 - 4 54 51 67 - 67 51 54 4 - 72 - - - - - - - - 72 71 55 52 67 69 67 52 55 71 72 72 71 55 52 67 69 67 52 55 71 72 60 55 77 - 55 40 55 - 69
+
+(palindrome (euclid (seq 4 - (take (chord 69 1) 3) - 4 -) 4 3))
+  rest_ratio: 0.29
+  output: 4 - 69 72 69 - 4
+
+(seq 10 (cycle (seq - (bjork 3 4) - (reverse (bjork 3 4)) 10 -) 83) (seq (bjork 3 4) (bjork 3 4) (bjork 3 4) 3) (seq - (bjork 3 4) - (reverse (bjork 3 4)) 10 -) - 69 (bjork 3 4) -)
+  rest_ratio: 0.39
+  output: 10 - 1 1 1 - - - 1 1 1 10 - - 1 1 1 - - - 1 1 1 10 - - 1 1 1 - - - 1 1 1 10 - - 1 1 1 - - - 1 1 1 10 - - 1 1 1 - - - 1 1 1 10 - - 1 1 1 - - - 1 1 1 10 - - 1 1 1 - - - 1 1 1 10 1 1 1 - 1 1 1 - 1 1 1 - 3 - 1 1 1 - - - 1 1 1 10 - - 69 1 1 1 - -
+
+(seq (cycle (reverse (seq 52 - 60 58 -)) 4) (seq - (seq - -) 2 - - 4) 3 69 (seq - 2 64 5) (arp (chord 53 5) 1 4))
+  rest_ratio: 0.38
+  output: - 58 60 - - - - 2 - - 4 3 69 - 2 64 5 63 60 56 53
+
+(seq (seq 64 64 69 -) (maybe 2 67 4) (seq - 55) 64 - 72)
+  rest_ratio: 0.30
+  output: 64 64 69 - 67 - 55 64 - 72
+
+(seq (every (seq - 65 64 -) 4) (seq - 52 (prob (every (seq - 65 64 -) 4) 75) (seq - 64 60 64 - 72) (seq 65 61 60 64 60 60) 60 79 (prob (slice (seq - 69 - 64) 0 4) 75)) (every (seq - 65 64 -) 4) (every (seq - 65 64 -) 4) -)
+  rest_ratio: 0.40
+  output: - - 52 - - 64 60 64 - 72 65 61 60 64 60 60 60 79 - 69 - 64 - - -
+
+(seq (reverse (rep 3 2)) 2 (seq (seq 72 - 71 52 -) (seq 2 -)) 60 (seq (seq 60 8 (seq (rep 64 4) (seq 2 -)) -) (seq 2 -) 1 (seq 72 - 71 52 69) (seq 60 8 (seq (seq 72 - 71 - -) (seq 2 69)))) -)
+  rest_ratio: 0.29
+  output: 3 3 2 72 - 71 52 - 2 - 60 60 8 64 64 64 64 2 - - 2 - 1 72 - 71 52 69 60 8 72 - 71 - - 2 69 -
+
+(seq - (seq 67 (seq 67 62 (seq 58 4 60 - (reverse 67) 60) (seq (reverse 60) 71 62 - 67 -) (seq - -)) - 67 79 (seq 67 62 (seq 60 72 60 - 67) (seq 60 (reverse 71) 55 - 67) -) 67 41) (reverse 65) (seq 60 - 65 71 -) - (seq 67 71))
+  rest_ratio: 0.29
+  output: - 67 67 62 58 4 60 - 67 60 60 71 62 - 67 - - - - 67 79 67 62 60 72 60 - 67 60 71 55 - 67 - 67 41 65 60 - 65 71 - - 67 71
 
 (seq 60 64 - (reverse (shuffle (seq 71 55 - 62 -))) 48)
   rest_ratio: 0.33
-  output: 60 64 - - - 62 71 55 48
+  output: 60 64 - - - 71 55 62 48
 
 (rep (seq - - 55 (subdiv (seq - 67 65 48) 4)) 3)
   rest_ratio: 0.32
   output: - - 55 - - - - 67 67 67 67 65 65 65 65 48 48 48 48 - - 55 - - - - 67 67 67 67 65 65 65 65 48 48 48 48 - - 55 - - - - 67 67 67 67 65 65 65 65 48 48 48 48
 
-(choose (chord 60 0) (reverse (seq 60 71 60 - 67)))
-  rest_ratio: 0.20
-  output: 67 - 60 71 60
-
-(interleave (bjork 2 8) (interleave - 16))
-  rest_ratio: 0.70
-  output: 1 - - 16 - - 1 - - -
-
-(maybe (rand 16 0 1) (seq - 62 2 71) 50)
-  rest_ratio: 0.25
-  output: - 62 2 71
-
-(seq - 60 (euclid 7 16) (euclid 7 16) - 7)
-  rest_ratio: 0.56
-  output: - 60 - - 1 - 1 - 1 - - 1 - 1 - 1 - 1 - - 1 - 1 - 1 - - 1 - 1 - 1 - 1 - 7
-
-(reverse (seq 60 - 64 - 67))
-  rest_ratio: 0.40
-  output: 67 - 64 - 60
-
-(seq - 60 - (chord 64 4) - 4)
+(drop (rotate (prob (seq 69 69 55 60 72 -) 75) 3) 3)
   rest_ratio: 0.33
-  output: - 60 - 64 68 71 75 - 4
+  output: - 69 55
 
-(shuffle (seq 65 60 - 62))
-  rest_ratio: 0.25
-  output: 62 65 - 60
+(seq (gate (transpose 4 12) 4) 8 - 71 (seq - 69 72 52 71 69) 69 (euclid (seq 69 72 52 (seq - -) 69) 8) (seq (seq 60 - 72 (reverse -) - 69) (euclid (seq - 2 72 52 - 69) 8) (euclid (seq (seq - -) 69 5 52 - 69) 8)))
+  rest_ratio: 0.41
+  output: 16 8 - 71 - 69 72 52 71 69 69 - 69 72 52 - - - 69 60 - 72 - - 69 - - 2 72 - 52 - 69 - - - 69 5 52 - 69
 
-(every (seq (seq - 69 72 52 - 69) (euclid (seq - 69 72 52 - 69) 8) (euclid (seq - 69 72 52 - 69) 8)) 1)
-  rest_ratio: 0.45
-  output: - 69 72 52 - 69 - - 69 72 - 52 - 69 - - 69 72 - 52 - 69
+(seq 71 (palindrome -) (take (seq - 64 72 71 - 60) 2) (shuffle (seq 69 - 5 69 69)) (degrade (reverse (seq 52 - 65 71 48)) 50) (chord 60 0) (palindrome 60) (bjork 5 11))
+  rest_ratio: 0.38
+  output: 71 - - 64 69 - 69 5 69 - 71 65 - 52 60 64 67 60 1 - 1 - 1 - 1 - 1 - -
 
-(grow (shuffle (degrade (seq 65 - 69 55 (reverse 64)) 50)))
-  rest_ratio: 0.64
-  output: 69 - - - - 69 65 - - - 69 65 - - - 69 65 - - - 69 65 - - -
+(prob (seq (reverse (euclid 71 8)) (euclid (seq - 60 72 47 - 69) 4) (drop (seq 48 - 48 55 72) 2) (subdiv (seq - 69 72 54 - 69) 1) (seq 62 - 1 57 74) 4) 57)
+  rest_ratio: 0.56
+  output: - 1 1 - 1 - - 1 - 60 - 47 48 55 72 - 69 - 54 - - - - - 57 - -
 
-(subdiv (interleave (choose 16 8 -) 3) 4)
-  rest_ratio: 0.50
-  output: - - - - 3 3 3 3
+(seq 60 - (chord 55 3) (bjork 3 4) (bjork 3 4))
+  rest_ratio: 0.23
+  output: 60 - 55 59 63 1 1 1 - 1 1 1 -
 
-(rotate (seq - (take (seq 55 - - 69) 3) 72 60 65) 1)
-  rest_ratio: 0.43
-  output: 65 - 55 - - 72 60
+(palindrome (seq (palindrome 4) 16 (seq 4 - (bjork 3 2) 4 4 (seq 4 -)) 69 (take (seq - - 69) 3) -))
+  rest_ratio: 0.31
+  output: 4 16 4 - 1 1 4 4 4 - 69 - - 69 - 69 - - 69 - 4 4 4 1 1 - 4 16 4
+
+(seq 71 (palindrome (seq 72 (seq - -) 55 52 67 -)) (seq (seq 67 (seq 74 - 55 50 67 -) 72 72 67 69) - -) (palindrome (seq 72 4 55 52 67 -)) (degrade (seq 52 71 60 71 48) 50) (mirror 3) (palindrome 60) (bjork 5 4))
+  rest_ratio: 0.24
+  output: 71 72 - - 55 52 67 - 67 52 55 - - 72 67 74 - 55 50 67 - 72 72 67 69 - - 72 4 55 52 67 - 67 52 55 4 72 52 71 - 71 - 3 3 60 1 1 1 1
+
+(quantize (palindrome (seq 60 - 64 - 67)) (seq (every (range 60 84) 2) (every (range 60 84) 2) 60 (every (range 60 84) 7) (seq 67 -) (palindrome 5) - 72))
+  rest_ratio: 0.44
+  output: 60 - 64 - 67 - 64 - 60
+
+(every (seq 16 (euclid (seq 65 69 72 1 - 69) 8) (euclid (seq - 69 4 (seq 57 -) - 69) 8 16)) 1)
+  rest_ratio: 0.41
+  output: 16 - 65 69 72 - 1 - 69 - - 69 4 57 - - 69
 
 (subdiv (mirror (shuffle (seq 64 - 71 - 67))) 1)
   rest_ratio: 0.40
-  output: - 64 - 71 67 67 71 - 64 -
+  output: - - 64 71 67 67 71 64 - -
 
-(subdiv (quantize (reverse (seq 65 - 60 - 52)) (seq 60 62 64 65 67 69 71 72)) 1)
-  rest_ratio: 0.40
-  output: 60 - 60 - 65
+(seq 67 - (degrade (seq 72 - 52 64) 52) (seq 40 71 (seq 71 -) - -) (maybe (chord 48 4) 8 75))
+  rest_ratio: 0.31
+  output: 67 - 72 - 52 64 40 71 71 - - - 48 52 55 59
 
-(quantize (palindrome (seq - 62 - 48)) (seq 60 62 64 65 67 69 71 72))
-  rest_ratio: 0.57
-  output: - 62 - 60 - 62 -
+(seq 65 61 (seq - -) (quantize 54 2) 3 3)
+  rest_ratio: 0.29
+  output: 65 61 - - 2 3 3
 
-(seq (gate (transpose 4 12) 4) 2 - 71)
-  rest_ratio: 0.25
-  output: 16 2 - 71
+(seq (prob (seq (reverse 3) 60 (palindrome (seq - - -)) -) 75) (palindrome -) 41 52 (maybe (chord 48 4) (rand 8 1 6) 75))
+  rest_ratio: 0.60
+  output: - - - - - - - - - 41 52 48 52 55 59
 
-(drop (rotate (prob (seq 69 69 55 60 72 -) 75) 3) 3)
+(seq (euclid 3 8) - - (euclid 5 8))
+  rest_ratio: 0.56
+  output: - - 1 - - 1 - 1 - - - 1 - 1 1 - 1 1
+
+(seq 8 (euclid (seq - 75 72 69 64 71) 8) (seq (euclid (filter (seq 48 - - 72 62 48 60)) 5) (reverse 62) (degrade (seq 52 72 - - 71 71) 25) - (mirror (seq 52 - (seq 69 -) 60)) 69 76 (seq - -)))
   rest_ratio: 0.33
-  output: 69 - 55
-
-(maybe (mirror (seq 67 72 - 48)) (bjork 2 8) 75)
-  rest_ratio: 0.25
-  output: 67 72 - 48 48 - 72 67
-
-(interleave (palindrome (bjork 2 8)) (maybe (degrade (seq - 64 62 64 62 72) 75) (gate (seq 60 - 65 64 65) 3) 25))
-  rest_ratio: 0.70
-  output: 1 60 - - - - - 64 1 - - - - - - 1 - - - 1
-
-(prob (every (seq 72 - - 55 65 64) 1) 50)
-  rest_ratio: 0.50
-  output: - - - 55 65 64
-
-(grow (rotate (seq - 69 67 71 - 48) 4))
-  rest_ratio: 0.58
-  output: 67 - - - - - 67 71 - - - - 67 71 - - - - 67 71 - 48 - - 67 71 - 48 - - 67 71 - 48 - 69
-
-(palindrome (take (seq 60 - 65 71 -) 6))
-  rest_ratio: 0.33
-  output: 60 - 65 71 - 71 65 - 60
-
-(grow (choose (interleave 8 -) (palindrome (seq - 69 69 65 69 55))))
-  rest_ratio: 0.50
-  output: 8 - 8 -
+  output: 8 - - 75 72 - 69 64 71 48 72 62 48 60 62 52 72 - - 71 71 - 52 - 69 - 60 60 - 69 - 52 69 76 - -
 
