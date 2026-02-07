@@ -1,0 +1,24 @@
+#N canvas 273 304 592 468 12;
+#X obj 54 203 heavybass~, f 39;
+#X obj 54 289 dac~;
+#X floatatom 53 177 5 0 0 0 - - - 0;
+#X floatatom 145 179 5 0 0 0 - - - 0;
+#X obj 53 129 random 24;
+#X obj 53 24 tgl 15 0 empty empty empty 17 7 0 10 #fcfcfc #000000 #000000
+0 1;
+#X obj 53 44 metro 500;
+#X obj 54 230 *~ 0.6;
+#X floatatom 234 178 5 0 0 0 - - - 0;
+#X floatatom 323 179 5 0 0 0 - - - 0;
+#X obj 53 154 + 30;
+#X connect 0 0 7 0;
+#X connect 2 0 0 0;
+#X connect 3 0 0 1;
+#X connect 4 0 10 0;
+#X connect 5 0 6 0;
+#X connect 6 0 4 0;
+#X connect 7 0 1 0;
+#X connect 7 0 1 1;
+#X connect 8 0 0 2;
+#X connect 9 0 0 3;
+#X connect 10 0 2 0;
