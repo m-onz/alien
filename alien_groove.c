@@ -1,43 +1,34 @@
 /*
- * alien_groove.c - Rhythmic pattern constrainer for Pure Data
+ * alien_groove.c - Stochastic pattern filter for Pure Data
  *
- * Constrains incoming rhythmic patterns to a template groove
- * with variable strictness.
+ * Applies a stochastic mask to incoming patterns.
  *
  * Inlets:
- *   1 (left, hot): list - pattern to constrain
- *   2 (right, cold): list - template pattern
+ *   1 (left, hot): list - pattern to filter
+ *   2 (right, cold): list - template pattern (optional)
  *
  * Outlets:
- *   1: list - constrained pattern
+ *   1: list - filtered pattern
  *
  * Messages:
- *   strictness <0-100>   - how strictly to enforce (default 100)
- *   mode <mask|pull|push> - constraint mode (default mask)
+ *   strictness <0-100>   - probability of dropping notes (default 50)
  *   phase <n>            - rotate template by N steps (default 0)
  *
- * Modes:
- *   mask - silence non-aligned hits based on strictness
- *   pull - pull hits toward nearest template beat
- *   push - push hits away from template (counter-rhythm)
+ * Behavior:
+ *   With template: notes on template positions pass through,
+ *                  notes off template are dropped with probability = strictness%
+ *   Without template: all notes are dropped with probability = strictness%
  */
 
 #include "m_pd.h"
-#include "alien_core.h"
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
+
+#define ALIEN_VERSION_STRING "0.2.1"
 
 static t_class *alien_groove_class;
 
 #define MAX_PATTERN_LEN 256
-#define REST_VALUE -1
-
-typedef enum {
-    MODE_MASK,   // Silence non-aligned hits based on strictness
-    MODE_PULL,   // Pull hits toward template positions
-    MODE_PUSH    // Push hits away from template (inverse/counter-rhythm)
-} groove_mode;
 
 typedef struct _alien_groove {
     t_object x_obj;
@@ -47,11 +38,7 @@ typedef struct _alien_groove {
     int x_template[MAX_PATTERN_LEN];   // Template pattern (1=hit, 0=rest)
     int x_template_len;
 
-    t_atom x_last_input[MAX_PATTERN_LEN];  // Store last input for re-output
-    int x_last_input_len;
-
-    int x_strictness;                   // 0-100
-    groove_mode x_mode;
+    int x_strictness;                   // 0-100 (probability of dropping)
     int x_phase;                        // Template rotation offset
 
     int x_random_initialized;
@@ -77,206 +64,60 @@ static int random_percent(t_alien_groove *x) {
 // TEMPLATE HELPERS
 // ============================================================================
 
-// Check if position i in template is a hit (cycling if needed, with phase)
 static int template_is_hit(t_alien_groove *x, int i) {
-    if (x->x_template_len == 0) return 1;  // No template = everything allowed
+    if (x->x_template_len == 0) return 0;  // No template = apply stochastic filter to all
     int idx = ((i + x->x_phase) % x->x_template_len + x->x_template_len)
               % x->x_template_len;
     return x->x_template[idx] != 0;
-}
-
-// Find nearest template hit position (for pull mode)
-static int nearest_template_hit(t_alien_groove *x, int pos, int pattern_len) {
-    if (x->x_template_len == 0) return pos;
-
-    // Search outward from pos
-    for (int offset = 0; offset <= pattern_len; offset++) {
-        int left = pos - offset;
-        int right = pos + offset;
-
-        if (left >= 0 && template_is_hit(x, left)) return left;
-        if (right < pattern_len && template_is_hit(x, right)) return right;
-    }
-    return pos;  // Fallback
-}
-
-// Find nearest template rest position (for push mode)
-static int nearest_template_rest(t_alien_groove *x, int pos, int pattern_len) {
-    if (x->x_template_len == 0) return pos;
-
-    for (int offset = 0; offset <= pattern_len; offset++) {
-        int left = pos - offset;
-        int right = pos + offset;
-
-        if (left >= 0 && !template_is_hit(x, left)) return left;
-        if (right < pattern_len && !template_is_hit(x, right)) return right;
-    }
-    return pos;
-}
-
-// ============================================================================
-// CONSTRAINT ALGORITHMS
-// ============================================================================
-
-static void process_mask_mode(t_alien_groove *x, t_atom *in, t_atom *out, int len) {
-    for (int i = 0; i < len; i++) {
-        int is_rest = (in[i].a_type == A_SYMBOL) ||
-                      (in[i].a_type == A_FLOAT && atom_getfloat(&in[i]) == REST_VALUE);
-
-        if (is_rest) {
-            // Rests pass through unchanged
-            out[i] = in[i];
-        } else if (template_is_hit(x, i)) {
-            // Hit on template position: always passes
-            out[i] = in[i];
-        } else {
-            // Hit on non-template position: probabilistic based on strictness
-            if (random_percent(x) < x->x_strictness) {
-                // Silence it - output "-" symbol, not -1
-                SETSYMBOL(&out[i], gensym("-"));
-            } else {
-                // Let it through
-                out[i] = in[i];
-            }
-        }
-    }
-}
-
-static void process_pull_mode(t_alien_groove *x, t_atom *in, t_atom *out, int len) {
-    // Initialize output as all rests (use "-" symbol, not -1)
-    for (int i = 0; i < len; i++) {
-        SETSYMBOL(&out[i], gensym("-"));
-    }
-
-    for (int i = 0; i < len; i++) {
-        int is_rest = (in[i].a_type == A_SYMBOL) ||
-                      (in[i].a_type == A_FLOAT && atom_getfloat(&in[i]) == REST_VALUE);
-
-        if (is_rest) continue;
-
-        if (template_is_hit(x, i)) {
-            // Already on template: stays put
-            out[i] = in[i];
-        } else {
-            // Not on template: maybe pull toward nearest template hit
-            if (random_percent(x) < x->x_strictness) {
-                int target = nearest_template_hit(x, i, len);
-                // Only move if target is currently a rest (avoid collisions)
-                if (atom_getfloat(&out[target]) == REST_VALUE) {
-                    out[target] = in[i];
-                }
-                // Original position becomes rest (already is)
-            } else {
-                // Let it stay where it is
-                out[i] = in[i];
-            }
-        }
-    }
-}
-
-static void process_push_mode(t_alien_groove *x, t_atom *in, t_atom *out, int len) {
-    // Initialize output as all rests (use "-" symbol, not -1)
-    for (int i = 0; i < len; i++) {
-        SETSYMBOL(&out[i], gensym("-"));
-    }
-
-    for (int i = 0; i < len; i++) {
-        int is_rest = (in[i].a_type == A_SYMBOL) ||
-                      (in[i].a_type == A_FLOAT && atom_getfloat(&in[i]) == REST_VALUE);
-
-        if (is_rest) continue;
-
-        if (!template_is_hit(x, i)) {
-            // Already off template: stays put
-            out[i] = in[i];
-        } else {
-            // On template: maybe push to nearest rest position
-            if (random_percent(x) < x->x_strictness) {
-                int target = nearest_template_rest(x, i, len);
-                if (target != i && atom_getfloat(&out[target]) == REST_VALUE) {
-                    out[target] = in[i];
-                }
-                // If can't push, it gets silenced (counter-rhythm effect)
-            } else {
-                out[i] = in[i];
-            }
-        }
-    }
 }
 
 // ============================================================================
 // MESSAGE HANDLERS
 // ============================================================================
 
-// Left inlet: pattern to constrain (hot)
 static void alien_groove_list(t_alien_groove *x, t_symbol *s, int argc, t_atom *argv) {
-    (void)s;  // unused
+    (void)s;
     if (argc == 0) return;
     if (argc > MAX_PATTERN_LEN) argc = MAX_PATTERN_LEN;
 
-    // Store input for potential re-output on phase/mode change
-    x->x_last_input_len = argc;
-    for (int i = 0; i < argc; i++) {
-        x->x_last_input[i] = argv[i];
-    }
-
     t_atom *out = (t_atom *)getbytes(sizeof(t_atom) * argc);
 
-    switch (x->x_mode) {
-        case MODE_PULL:
-            process_pull_mode(x, argv, out, argc);
-            break;
-        case MODE_PUSH:
-            process_push_mode(x, argv, out, argc);
-            break;
-        case MODE_MASK:
-        default:
-            process_mask_mode(x, argv, out, argc);
-            break;
+    for (int i = 0; i < argc; i++) {
+        int is_rest = (argv[i].a_type == A_SYMBOL) ||
+                      (argv[i].a_type == A_FLOAT && atom_getfloat(&argv[i]) == -1);
+
+        if (is_rest) {
+            // Rests pass through unchanged
+            out[i] = argv[i];
+        } else if (x->x_template_len > 0 && template_is_hit(x, i)) {
+            // With template: notes on template positions always pass
+            out[i] = argv[i];
+        } else {
+            // No template OR note off template: apply stochastic filter
+            if (random_percent(x) < x->x_strictness) {
+                SETSYMBOL(&out[i], gensym("-"));
+            } else {
+                out[i] = argv[i];
+            }
+        }
     }
 
     outlet_list(x->x_out, &s_list, argc, out);
     freebytes(out, sizeof(t_atom) * argc);
 }
 
-// Right inlet: template pattern (cold)
 static void alien_groove_template(t_alien_groove *x, t_symbol *s, int argc, t_atom *argv) {
-    (void)s;  // unused
+    (void)s;
     x->x_template_len = (argc > MAX_PATTERN_LEN) ? MAX_PATTERN_LEN : argc;
 
     for (int i = 0; i < x->x_template_len; i++) {
         if (argv[i].a_type == A_SYMBOL) {
-            // Symbol (like "-") = rest = 0
             x->x_template[i] = 0;
         } else {
-            // Any non-zero number (except REST_VALUE) = hit
             float val = atom_getfloat(&argv[i]);
-            x->x_template[i] = (val != 0 && val != REST_VALUE) ? 1 : 0;
+            x->x_template[i] = (val != 0 && val != -1) ? 1 : 0;
         }
     }
-}
-
-// Internal: re-process and output the last input pattern
-static void alien_groove_reprocess(t_alien_groove *x) {
-    if (x->x_last_input_len == 0) return;
-
-    t_atom *out = (t_atom *)getbytes(sizeof(t_atom) * x->x_last_input_len);
-
-    switch (x->x_mode) {
-        case MODE_PULL:
-            process_pull_mode(x, x->x_last_input, out, x->x_last_input_len);
-            break;
-        case MODE_PUSH:
-            process_push_mode(x, x->x_last_input, out, x->x_last_input_len);
-            break;
-        case MODE_MASK:
-        default:
-            process_mask_mode(x, x->x_last_input, out, x->x_last_input_len);
-            break;
-    }
-
-    outlet_list(x->x_out, &s_list, x->x_last_input_len, out);
-    freebytes(out, sizeof(t_atom) * x->x_last_input_len);
 }
 
 static void alien_groove_strictness(t_alien_groove *x, t_floatarg f) {
@@ -289,36 +130,19 @@ static void alien_groove_phase(t_alien_groove *x, t_floatarg f) {
     x->x_phase = (int)f;
 }
 
-static void alien_groove_mode(t_alien_groove *x, t_symbol *s) {
-    if (strcmp(s->s_name, "mask") == 0) {
-        x->x_mode = MODE_MASK;
-    } else if (strcmp(s->s_name, "pull") == 0) {
-        x->x_mode = MODE_PULL;
-    } else if (strcmp(s->s_name, "push") == 0) {
-        x->x_mode = MODE_PUSH;
-    } else {
-        pd_error(x, "alien_groove: unknown mode '%s' (use mask, pull, or push)", s->s_name);
-    }
-}
-
 // ============================================================================
-// CONSTRUCTOR
+// CONSTRUCTOR / DESTRUCTOR
 // ============================================================================
 
 static void *alien_groove_new(void) {
     t_alien_groove *x = (t_alien_groove *)pd_new(alien_groove_class);
 
-    // Defaults
-    x->x_strictness = 100;
-    x->x_mode = MODE_MASK;
+    x->x_strictness = 50;
     x->x_phase = 0;
-    x->x_template_len = 0;  // No template = everything passes
-    x->x_last_input_len = 0;
+    x->x_template_len = 0;
     x->x_random_initialized = 0;
 
-    // Create right inlet for template (cold)
     x->x_template_inlet = inlet_new(&x->x_obj, &x->x_obj.ob_pd, &s_list, gensym("template"));
-
     x->x_out = outlet_new(&x->x_obj, &s_list);
 
     return (void *)x;
@@ -347,9 +171,7 @@ void alien_groove_setup(void) {
                     gensym("template"), A_GIMME, 0);
     class_addmethod(alien_groove_class, (t_method)alien_groove_strictness,
                     gensym("strictness"), A_FLOAT, 0);
-    class_addmethod(alien_groove_class, (t_method)alien_groove_mode,
-                    gensym("mode"), A_SYMBOL, 0);
     class_addmethod(alien_groove_class, (t_method)alien_groove_phase,
                     gensym("phase"), A_FLOAT, 0);
-    post("alien_groove %s - rhythmic pattern constrainer", ALIEN_VERSION_STRING);
+    post("alien_groove %s - stochastic pattern filter", ALIEN_VERSION_STRING);
 }

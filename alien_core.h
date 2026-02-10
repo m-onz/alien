@@ -1382,8 +1382,8 @@ static Sequence* eval_gate(ASTNode *node) {
 static Sequence* eval_node(ASTNode *node) {
     if (!node) return NULL;
     switch (node->type) {
-        case NODE_NUMBER: { Sequence *seq = seq_new(); if (seq) seq_append(seq, node->data.number); return seq; }
-        case NODE_HYPHEN: { Sequence *seq = seq_new(); if (seq) seq_append(seq, -1); return seq; }
+        case NODE_NUMBER: { Sequence *seq = seq_new(); if (seq && !seq_append(seq, node->data.number)) { seq_free(seq); return NULL; } return seq; }
+        case NODE_HYPHEN: { Sequence *seq = seq_new(); if (seq && !seq_append(seq, -1)) { seq_free(seq); return NULL; } return seq; }
         case NODE_SEQ: return eval_seq(node);
         case NODE_REP: return eval_rep(node);
         case NODE_ADD: return eval_add(node);
