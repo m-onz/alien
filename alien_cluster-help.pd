@@ -1,0 +1,9 @@
+#N canvas 282 393 450 300 12;
+#X obj 98 107 alien_cluster;
+#X msg 311 547 strictness 100;
+#X obj 91 35 bng 19 250 50 0 empty empty empty 0 -10 0 12 #fcfcfc #000000 #000000;
+#X listbox 96 166 20 0 0 0 - - - 0;
+#X listbox 185 132 20 0 0 0 - - - 0;
+#X connect 0 0 3 0;
+#X connect 0 1 4 0;
+#X connect 2 0 0 0;
