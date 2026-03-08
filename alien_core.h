@@ -16,7 +16,7 @@
 #define ALIEN_VERSION_MAJOR 0
 #define ALIEN_VERSION_MINOR 2
 #define ALIEN_VERSION_PATCH 1
-#define ALIEN_VERSION_STRING "0.2.1"
+#define ALIEN_VERSION_STRING "0.3.1"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -107,6 +107,9 @@ typedef enum {
     NODE_RANGE,
     NODE_RAMP,
     NODE_DRUNK,
+    // Constraints
+    NODE_WRAP,
+    NODE_FOLD,
     // Conditional/logic
     NODE_CYCLE,
     NODE_GROW,
@@ -329,6 +332,119 @@ static void bjorklund_rhythm(int hits, int steps, int *pattern) {
 }
 
 // ============================================================================
+// NOTE NAME PARSING (C4, D#4, Bb3, etc.)
+// ============================================================================
+
+// Chord type constants for chord name parsing
+#define CHORD_MAJOR 0
+#define CHORD_MINOR 1
+#define CHORD_DIM 2
+#define CHORD_AUG 3
+#define CHORD_MAJ7 4
+#define CHORD_MIN7 5
+#define CHORD_DOM7 6
+#define CHORD_DIM7 7
+#define CHORD_SUS2 8
+#define CHORD_SUS4 9
+
+// Parse chord name like Cmaj, Am7, D#dim, Bbmaj7
+// Returns: consumed chars, sets out_root (MIDI) and out_type
+static int parse_chord_name(const char *s, int *out_root, int *out_type) {
+    const char *p = s;
+    
+    // Note letter
+    int note_base;
+    switch (*p) {
+        case 'C': case 'c': note_base = 0; break;
+        case 'D': case 'd': note_base = 2; break;
+        case 'E': case 'e': note_base = 4; break;
+        case 'F': case 'f': note_base = 5; break;
+        case 'G': case 'g': note_base = 7; break;
+        case 'A': case 'a': note_base = 9; break;
+        case 'B': case 'b': note_base = 11; break;
+        default: return 0;
+    }
+    p++;
+    
+    // Accidentals
+    int accidental = 0;
+    while (*p == '#' || (*p == 'b' && *(p+1) != '\0' && !isdigit(*(p+1)))) {
+        if (*p == '#') accidental++;
+        else accidental--;
+        p++;
+    }
+    
+    // Default octave 4 for chords (C4 = 60)
+    int root = 60 + note_base + accidental;
+    
+    // Chord quality
+    int type = CHORD_MAJOR;  // default
+    
+    if (strncmp(p, "maj7", 4) == 0) { type = CHORD_MAJ7; p += 4; }
+    else if (strncmp(p, "min7", 4) == 0 || strncmp(p, "m7", 2) == 0) { 
+        type = CHORD_MIN7; 
+        p += (strncmp(p, "min7", 4) == 0) ? 4 : 2; 
+    }
+    else if (strncmp(p, "dim7", 4) == 0) { type = CHORD_DIM7; p += 4; }
+    else if (strncmp(p, "dim", 3) == 0) { type = CHORD_DIM; p += 3; }
+    else if (strncmp(p, "aug", 3) == 0) { type = CHORD_AUG; p += 3; }
+    else if (strncmp(p, "maj", 3) == 0) { type = CHORD_MAJOR; p += 3; }
+    else if (strncmp(p, "min", 3) == 0 || *p == 'm') { 
+        type = CHORD_MINOR; 
+        p += (*p == 'm' && *(p+1) != 'a') ? 1 : 3; 
+    }
+    else if (strncmp(p, "sus2", 4) == 0) { type = CHORD_SUS2; p += 4; }
+    else if (strncmp(p, "sus4", 4) == 0) { type = CHORD_SUS4; p += 4; }
+    else if (*p == '7') { type = CHORD_DOM7; p++; }
+    // else stays CHORD_MAJOR
+    
+    *out_root = root;
+    *out_type = type;
+    return (int)(p - s);
+}
+
+static int parse_note_name(const char *s, int *out_midi) {
+    // Parse note names like C4, D#4, Eb3, F##4, Gbb2
+    // Returns number of characters consumed, or 0 if not a note
+    const char *p = s;
+    
+    // Note letter (C D E F G A B)
+    int note_base;
+    switch (*p) {
+        case 'C': case 'c': note_base = 0; break;
+        case 'D': case 'd': note_base = 2; break;
+        case 'E': case 'e': note_base = 4; break;
+        case 'F': case 'f': note_base = 5; break;
+        case 'G': case 'g': note_base = 7; break;
+        case 'A': case 'a': note_base = 9; break;
+        case 'B': case 'b': note_base = 11; break;
+        default: return 0;
+    }
+    p++;
+    
+    // Accidentals (# or b, can be doubled)
+    int accidental = 0;
+    while (*p == '#' || *p == 'b') {
+        if (*p == '#') accidental++;
+        else accidental--;
+        p++;
+    }
+    
+    // Octave number (required)
+    if (!isdigit(*p)) return 0;
+    int octave = 0;
+    while (isdigit(*p)) {
+        octave = octave * 10 + (*p - '0');
+        p++;
+    }
+    
+    // Calculate MIDI note (C4 = 60)
+    *out_midi = (octave + 1) * 12 + note_base + accidental;
+    
+    return (int)(p - s);
+}
+
+// ============================================================================
 // TOKENIZER
 // ============================================================================
 
@@ -373,18 +489,53 @@ static int tokenize(const char *input, Token *tokens, int max_tokens) {
                 p++; column++;
             }
             tok->value.number = (int)num;
-        } else if (isalpha(*p)) {
-            tok->type = TOK_SYMBOL;
-            int i = 0;
-            while ((isalpha(*p) || isdigit(*p)) && i < ALIEN_MAX_SYMBOL_LEN - 1) {
-                tok->value.symbol[i++] = *p++;
-                column++;
+        } else if (*p == '.' || *p == '_') {
+            // Alternative rest symbols: . _
+            if (*(p+1) == '\0' || isspace(*(p+1)) || *(p+1) == ')' || *(p+1) == '(') {
+                tok->type = TOK_HYPHEN;
+                p++; column++;
+            } else {
+                // It's part of a symbol, fall through
+                goto parse_symbol;
             }
-            tok->value.symbol[i] = '\0';
-            // Check if symbol was truncated
-            if (isalpha(*p) || isdigit(*p)) {
-                set_error("Symbol too long (truncated)");
-                return -1;
+        } else if (*p == 'x' || *p == 'X') {
+            // x/X as hit marker (value 1)
+            if (*(p+1) == '\0' || isspace(*(p+1)) || *(p+1) == ')' || *(p+1) == '(') {
+                tok->type = TOK_NUMBER;
+                tok->value.number = 1;
+                p++; column++;
+            } else {
+                goto parse_symbol;
+            }
+        } else if (isalpha(*p)) {
+            // Try to parse as note name first (C4, D#4, Eb3, etc.)
+            int midi_note;
+            int consumed = parse_note_name(p, &midi_note);
+            if (consumed > 0) {
+                // Check it's not part of a longer symbol
+                char next = *(p + consumed);
+                if (next == '\0' || isspace(next) || next == ')' || next == '(') {
+                    tok->type = TOK_NUMBER;
+                    tok->value.number = midi_note;
+                    p += consumed;
+                    column += consumed;
+                } else {
+                    goto parse_symbol;
+                }
+            } else {
+                parse_symbol:
+                tok->type = TOK_SYMBOL;
+                int i = 0;
+                while ((isalpha(*p) || isdigit(*p) || *p == '#') && i < ALIEN_MAX_SYMBOL_LEN - 1) {
+                    tok->value.symbol[i++] = *p++;
+                    column++;
+                }
+                tok->value.symbol[i] = '\0';
+                // Check if symbol was truncated
+                if (isalpha(*p) || isdigit(*p)) {
+                    set_error("Symbol too long (truncated)");
+                    return -1;
+                }
             }
         } else {
             set_error("Invalid character");
@@ -525,6 +676,8 @@ static ASTNode* parse_list(Parser *p) {
     else if (strcmp(op, "range") == 0) node = ast_new_op(NODE_RANGE);
     else if (strcmp(op, "ramp") == 0) node = ast_new_op(NODE_RAMP);
     else if (strcmp(op, "drunk") == 0) node = ast_new_op(NODE_DRUNK);
+    else if (strcmp(op, "wrap") == 0) node = ast_new_op(NODE_WRAP);
+    else if (strcmp(op, "fold") == 0) node = ast_new_op(NODE_FOLD);
     else if (strcmp(op, "cycle") == 0) node = ast_new_op(NODE_CYCLE);
     else if (strcmp(op, "grow") == 0) node = ast_new_op(NODE_GROW);
     else if (strcmp(op, "degrade") == 0) node = ast_new_op(NODE_DEGRADE);
@@ -1055,16 +1208,36 @@ static Sequence* eval_choose(ASTNode *node) {
 }
 
 static Sequence* eval_rand(ASTNode *node) {
-    if (node->data.op.child_count != 3) { set_error("rand requires 3 arguments"); return NULL; }
+    // rand count [min max] - defaults to MIDI range 0-127
+    if (node->data.op.child_count < 1 || node->data.op.child_count > 3) { 
+        set_error("rand requires 1-3 arguments: count [min max]"); 
+        return NULL; 
+    }
     Sequence *count_seq = eval_node(node->data.op.children[0]);
-    Sequence *min_seq = eval_node(node->data.op.children[1]);
-    Sequence *max_seq = eval_node(node->data.op.children[2]);
-    if (!count_seq || !min_seq || !max_seq) { seq_free(count_seq); seq_free(min_seq); seq_free(max_seq); return NULL; }
-    if (count_seq->length != 1 || min_seq->length != 1 || max_seq->length != 1) { set_error("rand: all arguments must be single numbers"); seq_free(count_seq); seq_free(min_seq); seq_free(max_seq); return NULL; }
+    if (!count_seq || count_seq->length != 1) { 
+        set_error("rand: count must be single number"); 
+        seq_free(count_seq); 
+        return NULL; 
+    }
     int count = count_seq->values[0];
-    int min = min_seq->values[0];
-    int max = max_seq->values[0];
-    seq_free(count_seq); seq_free(min_seq); seq_free(max_seq);
+    seq_free(count_seq);
+    
+    // Default to MIDI range
+    int min = 0, max = 127;
+    
+    if (node->data.op.child_count >= 3) {
+        Sequence *min_seq = eval_node(node->data.op.children[1]);
+        Sequence *max_seq = eval_node(node->data.op.children[2]);
+        if (!min_seq || !max_seq || min_seq->length != 1 || max_seq->length != 1) { 
+            set_error("rand: min and max must be single numbers"); 
+            seq_free(min_seq); seq_free(max_seq); 
+            return NULL; 
+        }
+        min = min_seq->values[0];
+        max = max_seq->values[0];
+        seq_free(min_seq); seq_free(max_seq);
+    }
+    
     Sequence *result = seq_new();
     if (!result) return NULL;
     for (int i = 0; i < count; i++) {
@@ -1165,23 +1338,124 @@ static Sequence* eval_ramp(ASTNode *node) {
 }
 
 static Sequence* eval_drunk(ASTNode *node) {
-    if (node->data.op.child_count != 3) { set_error("drunk requires 3 arguments"); return NULL; }
+    // drunk steps max_step start [min max]
+    if (node->data.op.child_count < 3 || node->data.op.child_count > 5) { 
+        set_error("drunk requires 3-5 arguments: steps max_step start [min max]"); 
+        return NULL; 
+    }
     Sequence *steps_seq = eval_node(node->data.op.children[0]);
     Sequence *max_step_seq = eval_node(node->data.op.children[1]);
     Sequence *start_seq = eval_node(node->data.op.children[2]);
     if (!steps_seq || !max_step_seq || !start_seq) { seq_free(steps_seq); seq_free(max_step_seq); seq_free(start_seq); return NULL; }
-    if (steps_seq->length != 1 || max_step_seq->length != 1 || start_seq->length != 1) { set_error("drunk: all arguments must be single numbers"); seq_free(steps_seq); seq_free(max_step_seq); seq_free(start_seq); return NULL; }
+    if (steps_seq->length != 1 || max_step_seq->length != 1 || start_seq->length != 1) { set_error("drunk: steps, max_step, start must be single numbers"); seq_free(steps_seq); seq_free(max_step_seq); seq_free(start_seq); return NULL; }
     int steps = steps_seq->values[0];
     int max_step = max_step_seq->values[0];
     int current = start_seq->values[0];
     seq_free(steps_seq); seq_free(max_step_seq); seq_free(start_seq);
+    
+    // Optional bounds
+    int has_bounds = 0;
+    int min_val = 0, max_val = 127;
+    if (node->data.op.child_count >= 5) {
+        Sequence *min_seq = eval_node(node->data.op.children[3]);
+        Sequence *max_seq = eval_node(node->data.op.children[4]);
+        if (!min_seq || !max_seq || min_seq->length != 1 || max_seq->length != 1) {
+            set_error("drunk: min and max must be single numbers");
+            seq_free(min_seq); seq_free(max_seq);
+            return NULL;
+        }
+        min_val = min_seq->values[0];
+        max_val = max_seq->values[0];
+        seq_free(min_seq); seq_free(max_seq);
+        has_bounds = 1;
+    }
+    
     Sequence *result = seq_new();
     if (!result) return NULL;
     for (int i = 0; i < steps; i++) {
         if (!seq_append(result, current)) { seq_free(result); return NULL; }
         int delta = random_range(-max_step, max_step);
         current += delta;
+        // Apply bounds if specified (reflect at boundaries)
+        if (has_bounds) {
+            while (current < min_val || current > max_val) {
+                if (current < min_val) current = min_val + (min_val - current);
+                if (current > max_val) current = max_val - (current - max_val);
+            }
+        }
     }
+    return result;
+}
+
+// wrap: constrain values to range using modulo (octave wrapping)
+static Sequence* eval_wrap(ASTNode *node) {
+    if (node->data.op.child_count != 3) { set_error("wrap requires 3 arguments: seq min max"); return NULL; }
+    Sequence *seq = eval_node(node->data.op.children[0]);
+    Sequence *min_seq = eval_node(node->data.op.children[1]);
+    Sequence *max_seq = eval_node(node->data.op.children[2]);
+    if (!seq || !min_seq || !max_seq) { seq_free(seq); seq_free(min_seq); seq_free(max_seq); return NULL; }
+    if (min_seq->length != 1 || max_seq->length != 1) { 
+        set_error("wrap: min and max must be single numbers"); 
+        seq_free(seq); seq_free(min_seq); seq_free(max_seq); 
+        return NULL; 
+    }
+    int min_val = min_seq->values[0];
+    int max_val = max_seq->values[0];
+    seq_free(min_seq); seq_free(max_seq);
+    
+    if (max_val <= min_val) { set_error("wrap: max must be greater than min"); seq_free(seq); return NULL; }
+    int range = max_val - min_val;
+    
+    Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
+    for (int i = 0; i < seq->length; i++) {
+        if (seq->values[i] == -1) {
+            if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
+        } else {
+            int val = seq->values[i];
+            // Wrap to range using modulo
+            val = ((val - min_val) % range + range) % range + min_val;
+            if (!seq_append(result, val)) { seq_free(result); seq_free(seq); return NULL; }
+        }
+    }
+    seq_free(seq);
+    return result;
+}
+
+// fold: constrain values to range by reflecting at boundaries
+static Sequence* eval_fold(ASTNode *node) {
+    if (node->data.op.child_count != 3) { set_error("fold requires 3 arguments: seq min max"); return NULL; }
+    Sequence *seq = eval_node(node->data.op.children[0]);
+    Sequence *min_seq = eval_node(node->data.op.children[1]);
+    Sequence *max_seq = eval_node(node->data.op.children[2]);
+    if (!seq || !min_seq || !max_seq) { seq_free(seq); seq_free(min_seq); seq_free(max_seq); return NULL; }
+    if (min_seq->length != 1 || max_seq->length != 1) { 
+        set_error("fold: min and max must be single numbers"); 
+        seq_free(seq); seq_free(min_seq); seq_free(max_seq); 
+        return NULL; 
+    }
+    int min_val = min_seq->values[0];
+    int max_val = max_seq->values[0];
+    seq_free(min_seq); seq_free(max_seq);
+    
+    if (max_val <= min_val) { set_error("fold: max must be greater than min"); seq_free(seq); return NULL; }
+    
+    Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
+    for (int i = 0; i < seq->length; i++) {
+        if (seq->values[i] == -1) {
+            if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
+        } else {
+            int val = seq->values[i];
+            // Fold/reflect at boundaries
+            while (val < min_val || val > max_val) {
+                if (val < min_val) val = min_val + (min_val - val);
+                if (val > max_val) val = max_val - (val - max_val);
+            }
+            if (!seq_append(result, val)) { seq_free(result); seq_free(seq); return NULL; }
+        }
+    }
+    seq_free(seq);
     return result;
 }
 
@@ -1278,29 +1552,66 @@ static Sequence* eval_quantize(ASTNode *node) {
     return result;
 }
 
-static Sequence* eval_chord(ASTNode *node) {
-    if (node->data.op.child_count != 2) { set_error("chord requires 2 arguments"); return NULL; }
-    Sequence *root_seq = eval_node(node->data.op.children[0]);
-    if (!root_seq || root_seq->length != 1) { set_error("chord: root must be single number"); seq_free(root_seq); return NULL; }
-    int root = root_seq->values[0];
-    seq_free(root_seq);
-    Sequence *type_seq = eval_node(node->data.op.children[1]);
-    if (!type_seq || type_seq->length != 1) { set_error("chord: type must be single number (0=major, 1=minor)"); seq_free(type_seq); return NULL; }
-    int type = type_seq->values[0];
-    seq_free(type_seq);
+static Sequence* build_chord(int root, int type) {
     Sequence *result = seq_new();
     if (!result) return NULL;
     switch (type) {
-        case 0: if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 7)) { seq_free(result); return NULL; } break;
-        case 1: if (!seq_append(result, root) || !seq_append(result, root + 3) || !seq_append(result, root + 7)) { seq_free(result); return NULL; } break;
-        case 2: if (!seq_append(result, root) || !seq_append(result, root + 3) || !seq_append(result, root + 6)) { seq_free(result); return NULL; } break;
-        case 3: if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 8)) { seq_free(result); return NULL; } break;
-        case 4: if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 7) || !seq_append(result, root + 11)) { seq_free(result); return NULL; } break;
-        case 5: if (!seq_append(result, root) || !seq_append(result, root + 3) || !seq_append(result, root + 7) || !seq_append(result, root + 10)) { seq_free(result); return NULL; } break;
-        case 6: if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 7) || !seq_append(result, root + 10)) { seq_free(result); return NULL; } break;
-        default: if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 7)) { seq_free(result); return NULL; }
+        case 0: // major
+            if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 7)) { seq_free(result); return NULL; } break;
+        case 1: // minor
+            if (!seq_append(result, root) || !seq_append(result, root + 3) || !seq_append(result, root + 7)) { seq_free(result); return NULL; } break;
+        case 2: // dim
+            if (!seq_append(result, root) || !seq_append(result, root + 3) || !seq_append(result, root + 6)) { seq_free(result); return NULL; } break;
+        case 3: // aug
+            if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 8)) { seq_free(result); return NULL; } break;
+        case 4: // maj7
+            if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 7) || !seq_append(result, root + 11)) { seq_free(result); return NULL; } break;
+        case 5: // min7
+            if (!seq_append(result, root) || !seq_append(result, root + 3) || !seq_append(result, root + 7) || !seq_append(result, root + 10)) { seq_free(result); return NULL; } break;
+        case 6: // dom7
+            if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 7) || !seq_append(result, root + 10)) { seq_free(result); return NULL; } break;
+        case 7: // dim7
+            if (!seq_append(result, root) || !seq_append(result, root + 3) || !seq_append(result, root + 6) || !seq_append(result, root + 9)) { seq_free(result); return NULL; } break;
+        case 8: // sus2
+            if (!seq_append(result, root) || !seq_append(result, root + 2) || !seq_append(result, root + 7)) { seq_free(result); return NULL; } break;
+        case 9: // sus4
+            if (!seq_append(result, root) || !seq_append(result, root + 5) || !seq_append(result, root + 7)) { seq_free(result); return NULL; } break;
+        default: // major
+            if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 7)) { seq_free(result); return NULL; }
     }
     return result;
+}
+
+static Sequence* eval_chord(ASTNode *node) {
+    if (node->data.op.child_count < 1 || node->data.op.child_count > 2) { 
+        set_error("chord requires 1 or 2 arguments"); 
+        return NULL; 
+    }
+    
+    // Check if first arg is a chord name symbol (parsed during tokenization won't work here)
+    // So we use the 2-arg form: (chord root type) or 1-arg with note name
+    Sequence *root_seq = eval_node(node->data.op.children[0]);
+    if (!root_seq || root_seq->length != 1) { 
+        set_error("chord: root must be single number or note name"); 
+        seq_free(root_seq); 
+        return NULL; 
+    }
+    int root = root_seq->values[0];
+    seq_free(root_seq);
+    
+    int type = 0; // default major
+    if (node->data.op.child_count == 2) {
+        Sequence *type_seq = eval_node(node->data.op.children[1]);
+        if (!type_seq || type_seq->length != 1) { 
+            set_error("chord: type must be single number"); 
+            seq_free(type_seq); 
+            return NULL; 
+        }
+        type = type_seq->values[0];
+        seq_free(type_seq);
+    }
+    
+    return build_chord(root, type);
 }
 
 static Sequence* eval_arp(ASTNode *node) {
@@ -1412,6 +1723,8 @@ static Sequence* eval_node(ASTNode *node) {
         case NODE_RANGE: return eval_range(node);
         case NODE_RAMP: return eval_ramp(node);
         case NODE_DRUNK: return eval_drunk(node);
+        case NODE_WRAP: return eval_wrap(node);
+        case NODE_FOLD: return eval_fold(node);
         case NODE_CYCLE: return eval_cycle(node);
         case NODE_GROW: return eval_grow(node);
         case NODE_DEGRADE: return eval_degrade(node);

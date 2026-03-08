@@ -44,29 +44,11 @@ CLI_CFLAGS = -Wall -Wextra -std=c99 -O2
 # Build targets
 .PHONY: all clean install test test-evo help
 
-all: alien.$(EXT) alien_router.$(EXT) alien_router2.$(EXT) alien_scale.$(EXT) alien_groove.$(EXT) alien_cluster.$(EXT) alien_buffer.$(EXT) alien_parser
+all: alien.$(EXT) alien_parser
 
 # Pure Data externals
 alien.$(EXT): alien.c alien_core.h
 	$(CC) $(PD_CFLAGS) -o $@ alien.c $(LDFLAGS) -lm
-
-alien_router.$(EXT): alien_router.c
-	$(CC) $(PD_CFLAGS) -o $@ alien_router.c $(LDFLAGS)
-
-alien_router2.$(EXT): alien_router2.c
-	$(CC) $(PD_CFLAGS) -o $@ alien_router2.c $(LDFLAGS)
-
-alien_scale.$(EXT): alien_scale.c alien_core.h
-	$(CC) $(PD_CFLAGS) -o $@ alien_scale.c $(LDFLAGS)
-
-alien_groove.$(EXT): alien_groove.c
-	$(CC) $(PD_CFLAGS) -o $@ alien_groove.c $(LDFLAGS)
-
-alien_cluster.$(EXT): alien_cluster.c
-	$(CC) $(PD_CFLAGS) -o $@ alien_cluster.c $(LDFLAGS) -lm
-
-alien_buffer.$(EXT): alien_buffer.c
-	$(CC) $(PD_CFLAGS) -o $@ alien_buffer.c $(LDFLAGS)
 
 # Standalone CLI tools
 alien_parser: alien_parser.c alien_core.h
@@ -77,15 +59,9 @@ test: alien_parser
 	./alien_parser --test
 
 # Install Pure Data externals
-install: alien.$(EXT) alien_router.$(EXT) alien_router2.$(EXT) alien_scale.$(EXT) alien_groove.$(EXT) alien_cluster.$(EXT) alien_buffer.$(EXT)
+install: alien.$(EXT)
 	mkdir -p $(PD_EXTERNALS_DIR)/alien
 	cp alien.$(EXT) $(PD_EXTERNALS_DIR)/alien/
-	cp alien_router.$(EXT) $(PD_EXTERNALS_DIR)/alien/
-	cp alien_router2.$(EXT) $(PD_EXTERNALS_DIR)/alien/
-	cp alien_scale.$(EXT) $(PD_EXTERNALS_DIR)/alien/
-	cp alien_groove.$(EXT) $(PD_EXTERNALS_DIR)/alien/
-	cp alien_cluster.$(EXT) $(PD_EXTERNALS_DIR)/alien/
-	cp alien_buffer.$(EXT) $(PD_EXTERNALS_DIR)/alien/
 	@if [ -f examples/alien-help.pd ]; then \
 		cp examples/alien-help.pd $(PD_EXTERNALS_DIR)/alien/; \
 	elif [ -f alien-help.pd ]; then \
@@ -93,14 +69,11 @@ install: alien.$(EXT) alien_router.$(EXT) alien_router2.$(EXT) alien_scale.$(EXT
 	else \
 		echo "Warning: alien-help.pd not found, skipping"; \
 	fi
-	@if [ -f alien_router-help.pd ]; then \
-		cp alien_router-help.pd $(PD_EXTERNALS_DIR)/alien/; \
-	fi
 	@echo "Installed to $(PD_EXTERNALS_DIR)/alien"
 
 # Clean build artifacts
 clean:
-	rm -f alien.$(EXT) alien_router.$(EXT) alien_router2.$(EXT) alien_scale.$(EXT) alien_groove.$(EXT) alien_cluster.$(EXT) alien_buffer.$(EXT) alien_parser *.o
+	rm -f alien.$(EXT) alien_parser *.o
 
 # Help
 help:
