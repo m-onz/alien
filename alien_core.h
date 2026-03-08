@@ -498,44 +498,18 @@ static int tokenize(const char *input, Token *tokens, int max_tokens) {
                 // It's part of a symbol, fall through
                 goto parse_symbol;
             }
-        } else if (*p == 'x' || *p == 'X') {
-            // x/X as hit marker (value 1)
-            if (*(p+1) == '\0' || isspace(*(p+1)) || *(p+1) == ')' || *(p+1) == '(') {
-                tok->type = TOK_NUMBER;
-                tok->value.number = 1;
-                p++; column++;
-            } else {
-                goto parse_symbol;
-            }
         } else if (isalpha(*p)) {
-            // Try to parse as note name first (C4, D#4, Eb3, etc.)
-            int midi_note;
-            int consumed = parse_note_name(p, &midi_note);
-            if (consumed > 0) {
-                // Check it's not part of a longer symbol
-                char next = *(p + consumed);
-                if (next == '\0' || isspace(next) || next == ')' || next == '(') {
-                    tok->type = TOK_NUMBER;
-                    tok->value.number = midi_note;
-                    p += consumed;
-                    column += consumed;
-                } else {
-                    goto parse_symbol;
-                }
-            } else {
-                parse_symbol:
-                tok->type = TOK_SYMBOL;
-                int i = 0;
-                while ((isalpha(*p) || isdigit(*p) || *p == '#') && i < ALIEN_MAX_SYMBOL_LEN - 1) {
-                    tok->value.symbol[i++] = *p++;
-                    column++;
-                }
-                tok->value.symbol[i] = '\0';
-                // Check if symbol was truncated
-                if (isalpha(*p) || isdigit(*p)) {
-                    set_error("Symbol too long (truncated)");
-                    return -1;
-                }
+            parse_symbol:
+            tok->type = TOK_SYMBOL;
+            int i = 0;
+            while ((isalpha(*p) || isdigit(*p) || *p == '#') && i < ALIEN_MAX_SYMBOL_LEN - 1) {
+                tok->value.symbol[i++] = *p++;
+                column++;
+            }
+            tok->value.symbol[i] = '\0';
+            if (isalpha(*p) || isdigit(*p)) {
+                set_error("Symbol too long (truncated)");
+                return -1;
             }
         } else {
             set_error("Invalid character");
