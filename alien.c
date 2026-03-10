@@ -24,7 +24,9 @@ static t_class *alien_class;
 // ============================================================================
 
 typedef struct _alien t_alien;
+typedef struct _alien_transport t_alien_transport;
 static void alien_sync_tick(t_alien *x);
+static void transport_do_pending_reset(t_alien_transport *x);
 
 // ============================================================================
 // GLOBAL ENTANGLED GROUP
@@ -34,9 +36,12 @@ static struct {
     t_alien **instances;
     int count;
     int capacity;
+    t_alien_transport **transports;
+    int transport_count;
+    int transport_capacity;
     t_clock *sync_clock;
     t_alien *clock_owner;
-} g_group = {NULL, 0, 0, NULL, NULL};
+} g_group = {NULL, 0, 0, NULL, 0, 0, NULL, NULL};
 
 static void group_register(t_alien *x) {
     if (g_group.instances == NULL) {
@@ -76,6 +81,32 @@ static void group_unregister(t_alien *x) {
             clock_free(g_group.sync_clock);
             g_group.sync_clock = NULL;
             g_group.clock_owner = NULL;
+        }
+    }
+}
+
+static void group_register_transport(t_alien_transport *x) {
+    if (g_group.transports == NULL) {
+        g_group.transport_capacity = ALIEN_GROUP_INIT_CAP;
+        g_group.transports = (t_alien_transport **)getbytes(
+            sizeof(t_alien_transport *) * g_group.transport_capacity);
+        g_group.transport_count = 0;
+    }
+    if (g_group.transport_count >= g_group.transport_capacity) {
+        int old_cap = g_group.transport_capacity;
+        g_group.transport_capacity *= 2;
+        g_group.transports = (t_alien_transport **)resizebytes(g_group.transports,
+            sizeof(t_alien_transport *) * old_cap,
+            sizeof(t_alien_transport *) * g_group.transport_capacity);
+    }
+    g_group.transports[g_group.transport_count++] = x;
+}
+
+static void group_unregister_transport(t_alien_transport *x) {
+    for (int i = 0; i < g_group.transport_count; i++) {
+        if (g_group.transports[i] == x) {
+            g_group.transports[i] = g_group.transports[--g_group.transport_count];
+            break;
         }
     }
 }
@@ -248,6 +279,10 @@ static void alien_sync_tick(t_alien *x) {
         }
     }
 
+    // Reset transports in the same tick as pattern output
+    for (int i = 0; i < g_group.transport_count; i++)
+        transport_do_pending_reset(g_group.transports[i]);
+
     // Output all group patterns together
     for (int i = 0; i < g_group.count; i++) {
         alien_output_pattern(g_group.instances[i]);
@@ -386,6 +421,78 @@ static void alien_free(t_alien *x) {
 }
 
 // ============================================================================
+// ALIEN_TRANSPORT — clock divider with synchronized reset
+// ============================================================================
+
+static t_class *alien_transport_class;
+
+struct _alien_transport {
+    t_object x_obj;
+    int x_count;
+    int x_frozen;           // suppress outlets while waiting for sync
+    t_outlet *x_out[5];     // 0:raw, 1:/2, 2:/4, 3:/8, 4:/16
+};
+
+// Called by alien_sync_tick — unfreeze and reset at the exact moment
+// patterns are output, so sequencers get new patterns + fresh count together
+static void transport_do_pending_reset(t_alien_transport *x) {
+    if (x->x_frozen) {
+        x->x_count = 0;
+        x->x_frozen = 0;
+    }
+}
+
+static void transport_reset(t_alien_transport *x) {
+    x->x_count = 0;
+    x->x_frozen = 0;
+}
+
+static void transport_bang(t_alien_transport *x) {
+    if (x->x_frozen) return; // suppress ticks while waiting for patterns
+
+    int c = x->x_count++;
+
+    // Fire right-to-left (Pd outlet convention)
+    if ((c % 16) == 1) outlet_bang(x->x_out[4]);
+    if ((c % 8) == 1)  outlet_bang(x->x_out[3]);
+    if ((c % 4) == 1)  outlet_bang(x->x_out[2]);
+    if ((c % 2) == 1)  outlet_bang(x->x_out[1]);
+    outlet_bang(x->x_out[0]);
+}
+
+// Pattern messages arriving via "all" — freeze until sync_tick fires
+static void transport_anything(t_alien_transport *x, t_symbol *s, int argc, t_atom *argv) {
+    (void)s; (void)argc; (void)argv;
+    x->x_frozen = 1;
+    if (g_group.sync_clock)
+        clock_delay(g_group.sync_clock, ALIEN_SYNC_DELAY_MS);
+}
+
+static void *transport_new(void) {
+    t_alien_transport *x = (t_alien_transport *)pd_new(alien_transport_class);
+    x->x_count = 0;
+    x->x_frozen = 0;
+
+    // Inlet 1: reset
+    inlet_new(&x->x_obj, &x->x_obj.ob_pd, &s_bang, gensym("reset"));
+
+    // 5 outlets: raw, /2, /4, /8, /16
+    for (int i = 0; i < 5; i++)
+        x->x_out[i] = outlet_new(&x->x_obj, &s_bang);
+
+    // Listen to "all" for synchronized reset
+    pd_bind(&x->x_obj.ob_pd, gensym("all"));
+    group_register_transport(x);
+
+    return (void *)x;
+}
+
+static void transport_free(t_alien_transport *x) {
+    pd_unbind(&x->x_obj.ob_pd, gensym("all"));
+    group_unregister_transport(x);
+}
+
+// ============================================================================
 // SETUP
 // ============================================================================
 
@@ -405,6 +512,19 @@ void alien_setup(void) {
     class_addmethod(alien_class, (t_method)alien_reset, gensym("reset"), 0);
     class_addmethod(alien_class, (t_method)alien_unsync, gensym("unsync"), 0);
     class_addmethod(alien_class, (t_method)alien_sync, gensym("sync"), 0);
+
+    // alien_transport class
+    alien_transport_class = class_new(gensym("alien_transport"),
+        (t_newmethod)transport_new,
+        (t_method)transport_free,
+        sizeof(t_alien_transport),
+        CLASS_DEFAULT,
+        0);
+
+    class_addbang(alien_transport_class, transport_bang);
+    class_addanything(alien_transport_class, transport_anything);
+    class_addmethod(alien_transport_class, (t_method)transport_reset,
+        gensym("reset"), 0);
 
     post("alien %s - entangled pattern evaluator", ALIEN_VERSION_STRING);
 }
