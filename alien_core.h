@@ -14,9 +14,9 @@
 
 // Version information
 #define ALIEN_VERSION_MAJOR 0
-#define ALIEN_VERSION_MINOR 2
-#define ALIEN_VERSION_PATCH 1
-#define ALIEN_VERSION_STRING "0.3.1"
+#define ALIEN_VERSION_MINOR 4
+#define ALIEN_VERSION_PATCH 0
+#define ALIEN_VERSION_STRING "0.4.0"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,6 +43,13 @@
     #define ALIEN_FREE(ptr, size) free(ptr)
     #define ALIEN_REALLOC(ptr, old_size, new_size) realloc(ptr, new_size)
 #endif
+
+// Rest sentinel — must not collide with valid musical values
+#define ALIEN_REST INT_MIN
+
+// Safety limits
+#define ALIEN_MAX_SEQ_LEN 65536
+#define ALIEN_MAX_DEPTH 64
 
 // ============================================================================
 // DATA STRUCTURES
@@ -77,19 +84,17 @@ typedef enum {
     NODE_REP,
     // Arithmetic
     NODE_ADD,
+    NODE_SUB,
     NODE_MUL,
     NODE_MOD,
     NODE_SCALE,
     NODE_CLAMP,
     // Rhythm
     NODE_EUCLID,
-    NODE_BJORK,
     NODE_SUBDIV,
     // List manipulation
     NODE_REVERSE,
     NODE_ROTATE,
-    NODE_PALINDROME,
-    NODE_MIRROR,
     NODE_INTERLEAVE,
     NODE_SHUFFLE,
     // Selection/filtering
@@ -102,7 +107,6 @@ typedef enum {
     NODE_CHOOSE,
     NODE_RAND,
     NODE_PROB,
-    NODE_MAYBE,
     // Pattern generation
     NODE_RANGE,
     NODE_RAMP,
@@ -113,15 +117,14 @@ typedef enum {
     // Conditional/logic
     NODE_CYCLE,
     NODE_GROW,
-    NODE_DEGRADE,
     // Musical
-    NODE_TRANSPOSE,
     NODE_QUANTIZE,
-    NODE_CHORD,
     NODE_ARP,
     // Time/phase
-    NODE_DELAY,
-    NODE_GATE
+    NODE_GATE,
+    NODE_SPEED,
+    NODE_MASK,
+    NODE_MIRROR
 } NodeType;
 
 typedef struct ASTNode {
@@ -137,7 +140,7 @@ typedef struct ASTNode {
 } ASTNode;
 
 typedef struct {
-    int *values;      // -1 represents hyphen
+    int *values;      // ALIEN_REST represents hyphen/rest
     int length;
     int capacity;
 } Sequence;
@@ -157,10 +160,15 @@ static void set_error(const char *msg) {
 // ============================================================================
 
 static bool g_random_initialized = false;
+static int g_parse_depth = 0;
+static int g_eval_depth = 0;
 
 static void init_random(void) {
     if (!g_random_initialized) {
-        srand(time(NULL));
+        unsigned int seed = (unsigned int)time(NULL);
+        seed ^= (unsigned int)clock();
+        seed ^= (unsigned int)(unsigned long)&seed;
+        srand(seed);
         g_random_initialized = true;
     }
 }
@@ -168,9 +176,9 @@ static void init_random(void) {
 static int random_range(int min, int max) {
     init_random();
     if (max < min) { int t = min; min = max; max = t; }
-    unsigned int range = (unsigned int)max - (unsigned int)min + 1;
-    if (range == 0) return min;  // overflow case: full int range
-    return min + (int)(rand() % range);
+    long range = (long)max - (long)min + 1;
+    if (range <= 0) return min;  // overflow case or degenerate
+    return min + (int)(rand() % (int)range);
 }
 
 // ============================================================================
@@ -194,6 +202,10 @@ static Sequence* seq_new(void) {
 }
 
 static bool seq_append(Sequence *seq, int value) {
+    if (seq->length >= ALIEN_MAX_SEQ_LEN) {
+        set_error("Sequence too long");
+        return false;
+    }
     if (seq->length >= seq->capacity) {
         int old_cap = seq->capacity;
         int new_cap = seq->capacity * 2;
@@ -258,190 +270,29 @@ static void euclidean_rhythm(int hits, int steps, int *pattern) {
     }
 }
 
-// Proper Bjorklund algorithm implementation using Euclidean distribution
-// Based on "The Euclidean Algorithm Generates Traditional Musical Rhythms" by Toussaint
-static void bjorklund_rhythm(int hits, int steps, int *pattern) {
-    if (steps <= 0) return;
-    if (hits >= steps) {
-        for (int i = 0; i < steps; i++) pattern[i] = 1;
-        return;
-    }
-    if (hits <= 0) {
-        for (int i = 0; i < steps; i++) pattern[i] = 0;
-        return;
-    }
-
-    // Initialize groups: 'hits' groups of [1] and 'rests' groups of [0]
-    int rests = steps - hits;
-
-    // Use temporary arrays for the algorithm
-    // Each "group" is stored as a sequence of bits
-    // We'll use a 2D approach with fixed max size
-    #define MAX_BJORK_STEPS 256
-    int groups[MAX_BJORK_STEPS][MAX_BJORK_STEPS];
-    int group_lens[MAX_BJORK_STEPS];
-    int num_groups = steps;
-
-    // Initialize: first 'hits' groups are [1], rest are [0]
-    for (int i = 0; i < hits; i++) {
-        groups[i][0] = 1;
-        group_lens[i] = 1;
-    }
-    for (int i = hits; i < steps; i++) {
-        groups[i][0] = 0;
-        group_lens[i] = 1;
-    }
-
-    // Bjorklund's algorithm: repeatedly distribute remainder groups
-    int num_ones = hits;
-    int num_zeros = rests;
-
-    while (num_zeros > 1) {
-        int distribute = (num_ones < num_zeros) ? num_ones : num_zeros;
-
-        // Append each of the last 'distribute' groups to the first 'distribute' groups
-        for (int i = 0; i < distribute; i++) {
-            int src_idx = num_ones + num_zeros - 1 - i;
-            int dst_idx = i;
-            // Append groups[src_idx] to groups[dst_idx]
-            for (int j = 0; j < group_lens[src_idx]; j++) {
-                groups[dst_idx][group_lens[dst_idx]++] = groups[src_idx][j];
-            }
-        }
-
-        // Update counts
-        if (num_ones < num_zeros) {
-            num_zeros = num_zeros - num_ones;
-            // num_ones stays the same
-        } else {
-            int temp = num_zeros;
-            num_zeros = num_ones - num_zeros;
-            num_ones = temp;
-        }
-        num_groups = num_ones + num_zeros;
-    }
-
-    // Flatten the groups into the output pattern
-    int pos = 0;
-    for (int i = 0; i < num_groups && pos < steps; i++) {
-        for (int j = 0; j < group_lens[i] && pos < steps; j++) {
-            pattern[pos++] = groups[i][j];
-        }
-    }
-    #undef MAX_BJORK_STEPS
-}
-
 // ============================================================================
-// NOTE NAME PARSING (C4, D#4, Bb3, etc.)
+// SCALE QUANTIZATION HELPER (shared between DSL and PD objects)
 // ============================================================================
 
-// Chord type constants for chord name parsing
-#define CHORD_MAJOR 0
-#define CHORD_MINOR 1
-#define CHORD_DIM 2
-#define CHORD_AUG 3
-#define CHORD_MAJ7 4
-#define CHORD_MIN7 5
-#define CHORD_DOM7 6
-#define CHORD_DIM7 7
-#define CHORD_SUS2 8
-#define CHORD_SUS4 9
-
-// Parse chord name like Cmaj, Am7, D#dim, Bbmaj7
-// Returns: consumed chars, sets out_root (MIDI) and out_type
-static int parse_chord_name(const char *s, int *out_root, int *out_type) {
-    const char *p = s;
-    
-    // Note letter
-    int note_base;
-    switch (*p) {
-        case 'C': case 'c': note_base = 0; break;
-        case 'D': case 'd': note_base = 2; break;
-        case 'E': case 'e': note_base = 4; break;
-        case 'F': case 'f': note_base = 5; break;
-        case 'G': case 'g': note_base = 7; break;
-        case 'A': case 'a': note_base = 9; break;
-        case 'B': case 'b': note_base = 11; break;
-        default: return 0;
+static int alien_snap_to_scale(int note, const int *scale_pcs, int scale_len, int root) {
+    if (scale_len <= 0) return note;
+    int octave = (note - root) / 12;
+    int pc = (note - root) % 12;
+    if (pc < 0) { pc += 12; octave--; }
+    int nearest_pc = scale_pcs[0];
+    int min_dist = pc - nearest_pc;
+    if (min_dist < 0) min_dist = -min_dist;
+    if (min_dist > 6) min_dist = 12 - min_dist;
+    for (int j = 1; j < scale_len; j++) {
+        int d = pc - scale_pcs[j];
+        if (d < 0) d = -d;
+        if (d > 6) d = 12 - d;
+        if (d < min_dist) {
+            min_dist = d;
+            nearest_pc = scale_pcs[j];
+        }
     }
-    p++;
-    
-    // Accidentals
-    int accidental = 0;
-    while (*p == '#' || (*p == 'b' && *(p+1) != '\0' && !isdigit(*(p+1)))) {
-        if (*p == '#') accidental++;
-        else accidental--;
-        p++;
-    }
-    
-    // Default octave 4 for chords (C4 = 60)
-    int root = 60 + note_base + accidental;
-    
-    // Chord quality
-    int type = CHORD_MAJOR;  // default
-    
-    if (strncmp(p, "maj7", 4) == 0) { type = CHORD_MAJ7; p += 4; }
-    else if (strncmp(p, "min7", 4) == 0 || strncmp(p, "m7", 2) == 0) { 
-        type = CHORD_MIN7; 
-        p += (strncmp(p, "min7", 4) == 0) ? 4 : 2; 
-    }
-    else if (strncmp(p, "dim7", 4) == 0) { type = CHORD_DIM7; p += 4; }
-    else if (strncmp(p, "dim", 3) == 0) { type = CHORD_DIM; p += 3; }
-    else if (strncmp(p, "aug", 3) == 0) { type = CHORD_AUG; p += 3; }
-    else if (strncmp(p, "maj", 3) == 0) { type = CHORD_MAJOR; p += 3; }
-    else if (strncmp(p, "min", 3) == 0 || *p == 'm') { 
-        type = CHORD_MINOR; 
-        p += (*p == 'm' && *(p+1) != 'a') ? 1 : 3; 
-    }
-    else if (strncmp(p, "sus2", 4) == 0) { type = CHORD_SUS2; p += 4; }
-    else if (strncmp(p, "sus4", 4) == 0) { type = CHORD_SUS4; p += 4; }
-    else if (*p == '7') { type = CHORD_DOM7; p++; }
-    // else stays CHORD_MAJOR
-    
-    *out_root = root;
-    *out_type = type;
-    return (int)(p - s);
-}
-
-static int parse_note_name(const char *s, int *out_midi) {
-    // Parse note names like C4, D#4, Eb3, F##4, Gbb2
-    // Returns number of characters consumed, or 0 if not a note
-    const char *p = s;
-    
-    // Note letter (C D E F G A B)
-    int note_base;
-    switch (*p) {
-        case 'C': case 'c': note_base = 0; break;
-        case 'D': case 'd': note_base = 2; break;
-        case 'E': case 'e': note_base = 4; break;
-        case 'F': case 'f': note_base = 5; break;
-        case 'G': case 'g': note_base = 7; break;
-        case 'A': case 'a': note_base = 9; break;
-        case 'B': case 'b': note_base = 11; break;
-        default: return 0;
-    }
-    p++;
-    
-    // Accidentals (# or b, can be doubled)
-    int accidental = 0;
-    while (*p == '#' || *p == 'b') {
-        if (*p == '#') accidental++;
-        else accidental--;
-        p++;
-    }
-    
-    // Octave number (required)
-    if (!isdigit(*p)) return 0;
-    int octave = 0;
-    while (isdigit(*p)) {
-        octave = octave * 10 + (*p - '0');
-        p++;
-    }
-    
-    // Calculate MIDI note (C4 = 60)
-    *out_midi = (octave + 1) * 12 + note_base + accidental;
-    
-    return (int)(p - s);
+    return octave * 12 + root + nearest_pc;
 }
 
 // ============================================================================
@@ -498,11 +349,11 @@ static int tokenize(const char *input, Token *tokens, int max_tokens) {
                 // It's part of a symbol, fall through
                 goto parse_symbol;
             }
-        } else if (isalpha(*p)) {
+        } else if (isalpha(*p) || *p == '.' || *p == '_') {
             parse_symbol:
             tok->type = TOK_SYMBOL;
             int i = 0;
-            while ((isalpha(*p) || isdigit(*p) || *p == '#') && i < ALIEN_MAX_SYMBOL_LEN - 1) {
+            while ((isalpha(*p) || isdigit(*p) || *p == '#' || *p == '.' || *p == '_') && i < ALIEN_MAX_SYMBOL_LEN - 1) {
                 tok->value.symbol[i++] = *p++;
                 column++;
             }
@@ -520,6 +371,9 @@ static int tokenize(const char *input, Token *tokens, int max_tokens) {
     if (token_count < max_tokens) {
         tokens[token_count].type = TOK_EOF;
         token_count++;
+    } else {
+        set_error("Too many tokens");
+        return -1;
     }
     return token_count;
 }
@@ -606,6 +460,10 @@ static Token* parser_advance(Parser *p) {
 static ASTNode* parse_expr(Parser *p);
 
 static ASTNode* parse_list(Parser *p) {
+    if (++g_parse_depth > ALIEN_MAX_DEPTH) {
+        set_error("Maximum nesting depth exceeded");
+        return NULL;
+    }
     Token *tok = parser_current(p);
     if (tok->type != TOK_LPAREN) {
         set_error("Expected '('");
@@ -625,17 +483,15 @@ static ASTNode* parse_list(Parser *p) {
     if (strcmp(op, "seq") == 0) node = ast_new_op(NODE_SEQ);
     else if (strcmp(op, "rep") == 0) node = ast_new_op(NODE_REP);
     else if (strcmp(op, "add") == 0) node = ast_new_op(NODE_ADD);
+    else if (strcmp(op, "sub") == 0) node = ast_new_op(NODE_SUB);
     else if (strcmp(op, "mul") == 0) node = ast_new_op(NODE_MUL);
     else if (strcmp(op, "mod") == 0) node = ast_new_op(NODE_MOD);
     else if (strcmp(op, "scale") == 0) node = ast_new_op(NODE_SCALE);
     else if (strcmp(op, "clamp") == 0) node = ast_new_op(NODE_CLAMP);
     else if (strcmp(op, "euclid") == 0) node = ast_new_op(NODE_EUCLID);
-    else if (strcmp(op, "bjork") == 0) node = ast_new_op(NODE_BJORK);
     else if (strcmp(op, "subdiv") == 0) node = ast_new_op(NODE_SUBDIV);
     else if (strcmp(op, "reverse") == 0) node = ast_new_op(NODE_REVERSE);
     else if (strcmp(op, "rotate") == 0) node = ast_new_op(NODE_ROTATE);
-    else if (strcmp(op, "palindrome") == 0) node = ast_new_op(NODE_PALINDROME);
-    else if (strcmp(op, "mirror") == 0) node = ast_new_op(NODE_MIRROR);
     else if (strcmp(op, "interleave") == 0) node = ast_new_op(NODE_INTERLEAVE);
     else if (strcmp(op, "shuffle") == 0) node = ast_new_op(NODE_SHUFFLE);
     else if (strcmp(op, "take") == 0) node = ast_new_op(NODE_TAKE);
@@ -646,7 +502,6 @@ static ASTNode* parse_list(Parser *p) {
     else if (strcmp(op, "choose") == 0) node = ast_new_op(NODE_CHOOSE);
     else if (strcmp(op, "rand") == 0) node = ast_new_op(NODE_RAND);
     else if (strcmp(op, "prob") == 0) node = ast_new_op(NODE_PROB);
-    else if (strcmp(op, "maybe") == 0) node = ast_new_op(NODE_MAYBE);
     else if (strcmp(op, "range") == 0) node = ast_new_op(NODE_RANGE);
     else if (strcmp(op, "ramp") == 0) node = ast_new_op(NODE_RAMP);
     else if (strcmp(op, "drunk") == 0) node = ast_new_op(NODE_DRUNK);
@@ -654,15 +509,19 @@ static ASTNode* parse_list(Parser *p) {
     else if (strcmp(op, "fold") == 0) node = ast_new_op(NODE_FOLD);
     else if (strcmp(op, "cycle") == 0) node = ast_new_op(NODE_CYCLE);
     else if (strcmp(op, "grow") == 0) node = ast_new_op(NODE_GROW);
-    else if (strcmp(op, "degrade") == 0) node = ast_new_op(NODE_DEGRADE);
-    else if (strcmp(op, "transpose") == 0) node = ast_new_op(NODE_TRANSPOSE);
     else if (strcmp(op, "quantize") == 0) node = ast_new_op(NODE_QUANTIZE);
-    else if (strcmp(op, "chord") == 0) node = ast_new_op(NODE_CHORD);
     else if (strcmp(op, "arp") == 0) node = ast_new_op(NODE_ARP);
-    else if (strcmp(op, "delay") == 0) node = ast_new_op(NODE_DELAY);
     else if (strcmp(op, "gate") == 0) node = ast_new_op(NODE_GATE);
+    else if (strcmp(op, "speed") == 0) node = ast_new_op(NODE_SPEED);
+    else if (strcmp(op, "mask") == 0) node = ast_new_op(NODE_MASK);
+    else if (strcmp(op, "mirror") == 0) node = ast_new_op(NODE_MIRROR);
     else {
         set_error("Unknown operator");
+        return NULL;
+    }
+
+    if (!node) {
+        set_error("Memory allocation failed");
         return NULL;
     }
 
@@ -688,6 +547,7 @@ static ASTNode* parse_list(Parser *p) {
     }
 
     parser_advance(p);
+    g_parse_depth--;
     return node;
 }
 
@@ -713,8 +573,15 @@ static ASTNode* parse_expr(Parser *p) {
 }
 
 static ASTNode* parse(Token *tokens, int token_count) {
+    g_parse_depth = 0;
     Parser parser = { tokens, 0, token_count };
-    return parse_expr(&parser);
+    ASTNode *ast = parse_expr(&parser);
+    if (ast && parser_current(&parser)->type != TOK_EOF) {
+        set_error("Unexpected tokens after expression");
+        ast_free(ast);
+        return NULL;
+    }
+    return ast;
 }
 
 // ============================================================================
@@ -783,7 +650,38 @@ static Sequence* eval_add(ASTNode *node) {
     Sequence *result = seq_new();
     if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
-        if (!seq_append(result, seq->values[i] == -1 ? -1 : seq->values[i] + delta)) { seq_free(result); seq_free(seq); return NULL; }
+        if (seq->values[i] == ALIEN_REST) {
+            if (!seq_append(result, ALIEN_REST)) { seq_free(result); seq_free(seq); return NULL; }
+        } else {
+            long val = (long)seq->values[i] + delta;
+            if (val > INT_MAX) val = INT_MAX;
+            if (val < INT_MIN + 1) val = INT_MIN + 1;
+            if (!seq_append(result, (int)val)) { seq_free(result); seq_free(seq); return NULL; }
+        }
+    }
+    seq_free(seq);
+    return result;
+}
+
+static Sequence* eval_sub(ASTNode *node) {
+    if (node->data.op.child_count != 2) { set_error("sub requires 2 arguments"); return NULL; }
+    Sequence *seq = eval_node(node->data.op.children[0]);
+    Sequence *delta_seq = eval_node(node->data.op.children[1]);
+    if (!seq || !delta_seq) { seq_free(seq); seq_free(delta_seq); return NULL; }
+    if (delta_seq->length != 1) { set_error("sub: second arg must be single number"); seq_free(seq); seq_free(delta_seq); return NULL; }
+    int delta = delta_seq->values[0];
+    seq_free(delta_seq);
+    Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
+    for (int i = 0; i < seq->length; i++) {
+        if (seq->values[i] == ALIEN_REST) {
+            if (!seq_append(result, ALIEN_REST)) { seq_free(result); seq_free(seq); return NULL; }
+        } else {
+            long val = (long)seq->values[i] - delta;
+            if (val > INT_MAX) val = INT_MAX;
+            if (val < INT_MIN + 1) val = INT_MIN + 1;
+            if (!seq_append(result, (int)val)) { seq_free(result); seq_free(seq); return NULL; }
+        }
     }
     seq_free(seq);
     return result;
@@ -800,7 +698,14 @@ static Sequence* eval_mul(ASTNode *node) {
     Sequence *result = seq_new();
     if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
-        if (!seq_append(result, seq->values[i] == -1 ? -1 : seq->values[i] * factor)) { seq_free(result); seq_free(seq); return NULL; }
+        if (seq->values[i] == ALIEN_REST) {
+            if (!seq_append(result, ALIEN_REST)) { seq_free(result); seq_free(seq); return NULL; }
+        } else {
+            long val = (long)seq->values[i] * factor;
+            if (val > INT_MAX) val = INT_MAX;
+            if (val < INT_MIN + 1) val = INT_MIN + 1;
+            if (!seq_append(result, (int)val)) { seq_free(result); seq_free(seq); return NULL; }
+        }
     }
     seq_free(seq);
     return result;
@@ -817,7 +722,7 @@ static Sequence* eval_mod(ASTNode *node) {
     Sequence *result = seq_new();
     if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
-        if (!seq_append(result, seq->values[i] == -1 ? -1 : seq->values[i] % divisor)) { seq_free(result); seq_free(seq); return NULL; }
+        if (!seq_append(result, seq->values[i] == ALIEN_REST ? ALIEN_REST : seq->values[i] % divisor)) { seq_free(result); seq_free(seq); return NULL; }
     }
     seq_free(seq);
     return result;
@@ -854,8 +759,8 @@ static Sequence* eval_scale(ASTNode *node) {
     Sequence *result = seq_new();
     if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
-        if (seq->values[i] == -1) {
-            if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
+        if (seq->values[i] == ALIEN_REST) {
+            if (!seq_append(result, ALIEN_REST)) { seq_free(result); seq_free(seq); return NULL; }
         } else {
             double normalized = (double)(seq->values[i] - from_min) / (from_max - from_min);
             int scaled = to_min + (int)(normalized * (to_max - to_min));
@@ -879,8 +784,8 @@ static Sequence* eval_clamp(ASTNode *node) {
     Sequence *result = seq_new();
     if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
-        if (seq->values[i] == -1) {
-            if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
+        if (seq->values[i] == ALIEN_REST) {
+            if (!seq_append(result, ALIEN_REST)) { seq_free(result); seq_free(seq); return NULL; }
         } else {
             int val = seq->values[i];
             if (val < min_val) val = min_val;
@@ -903,6 +808,19 @@ static Sequence* eval_euclid(ASTNode *node) {
 
     int steps = steps_seq->values[0];
     seq_free(steps_seq);
+
+    if (steps <= 0) { set_error("euclid: steps must be positive"); seq_free(pattern_seq); return NULL; }
+
+    // Handle zero hits explicitly
+    if (pattern_seq->length == 1 && pattern_seq->values[0] == 0) {
+        seq_free(pattern_seq);
+        Sequence *result = seq_new();
+        if (!result) return NULL;
+        for (int i = 0; i < steps; i++) {
+            if (!seq_append(result, ALIEN_REST)) { seq_free(result); return NULL; }
+        }
+        return result;
+    }
 
     int hits;
     int is_hit_count = (pattern_seq->length == 1 && pattern_seq->values[0] > 0);
@@ -933,40 +851,17 @@ static Sequence* eval_euclid(ASTNode *node) {
     if (!result) { ALIEN_FREE(euclid_pattern, sizeof(int) * steps); seq_free(pattern_seq); return NULL; }
     int pattern_idx = 0;
     for (int i = 0; i < steps; i++) {
-        int idx = (i + rotation) % steps;
+        int idx = ((i + rotation) % steps + steps) % steps;  // safe modulo for negative rotation
         if (euclid_pattern[idx]) {
             if (!seq_append(result, pattern_seq->values[pattern_idx % pattern_seq->length])) { seq_free(result); ALIEN_FREE(euclid_pattern, sizeof(int) * steps); seq_free(pattern_seq); return NULL; }
             pattern_idx++;
         } else {
-            if (!seq_append(result, -1)) { seq_free(result); ALIEN_FREE(euclid_pattern, sizeof(int) * steps); seq_free(pattern_seq); return NULL; }
+            if (!seq_append(result, ALIEN_REST)) { seq_free(result); ALIEN_FREE(euclid_pattern, sizeof(int) * steps); seq_free(pattern_seq); return NULL; }
         }
     }
 
     ALIEN_FREE(euclid_pattern, sizeof(int) * steps);
     seq_free(pattern_seq);
-    return result;
-}
-
-static Sequence* eval_bjork(ASTNode *node) {
-    if (node->data.op.child_count != 2) { set_error("bjork requires 2 arguments"); return NULL; }
-    Sequence *hits_seq = eval_node(node->data.op.children[0]);
-    Sequence *steps_seq = eval_node(node->data.op.children[1]);
-    if (!hits_seq || !steps_seq) { seq_free(hits_seq); seq_free(steps_seq); return NULL; }
-    if (hits_seq->length != 1 || steps_seq->length != 1) { set_error("bjork: hits and steps must be single numbers"); seq_free(hits_seq); seq_free(steps_seq); return NULL; }
-    int hits = hits_seq->values[0];
-    int steps = steps_seq->values[0];
-    seq_free(hits_seq); seq_free(steps_seq);
-    if (steps > 256) { set_error("bjork: max 256 steps"); return NULL; }
-    if (steps <= 0) { set_error("bjork: steps must be positive"); return NULL; }
-    int *pattern = (int*)ALIEN_MALLOC(sizeof(int) * steps);
-    if (!pattern) return NULL;
-    bjorklund_rhythm(hits, steps, pattern);
-    Sequence *result = seq_new();
-    if (!result) { ALIEN_FREE(pattern, sizeof(int) * steps); return NULL; }
-    for (int i = 0; i < steps; i++) {
-        if (!seq_append(result, pattern[i] ? 1 : -1)) { seq_free(result); ALIEN_FREE(pattern, sizeof(int) * steps); return NULL; }
-    }
-    ALIEN_FREE(pattern, sizeof(int) * steps);
     return result;
 }
 
@@ -1018,38 +913,6 @@ static Sequence* eval_rotate(ASTNode *node) {
     for (int i = 0; i < seq->length; i++) {
         int idx = (seq->length - n + i) % seq->length;
         if (!seq_append(result, seq->values[idx])) { seq_free(result); seq_free(seq); return NULL; }
-    }
-    seq_free(seq);
-    return result;
-}
-
-static Sequence* eval_palindrome(ASTNode *node) {
-    if (node->data.op.child_count != 1) { set_error("palindrome requires 1 argument"); return NULL; }
-    Sequence *seq = eval_node(node->data.op.children[0]);
-    if (!seq) return NULL;
-    Sequence *result = seq_new();
-    if (!result) { seq_free(seq); return NULL; }
-    for (int i = 0; i < seq->length; i++) {
-        if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
-    }
-    for (int i = seq->length - 2; i >= 0; i--) {
-        if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
-    }
-    seq_free(seq);
-    return result;
-}
-
-static Sequence* eval_mirror(ASTNode *node) {
-    if (node->data.op.child_count != 1) { set_error("mirror requires 1 argument"); return NULL; }
-    Sequence *seq = eval_node(node->data.op.children[0]);
-    if (!seq) return NULL;
-    Sequence *result = seq_new();
-    if (!result) { seq_free(seq); return NULL; }
-    for (int i = 0; i < seq->length; i++) {
-        if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
-    }
-    for (int i = seq->length - 1; i >= 0; i--) {
-        if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
     }
     seq_free(seq);
     return result;
@@ -1167,7 +1030,7 @@ static Sequence* eval_filter(ASTNode *node) {
     Sequence *result = seq_new();
     if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
-        if (seq->values[i] != -1) {
+        if (seq->values[i] != ALIEN_REST) {
             if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
         }
     }
@@ -1183,9 +1046,9 @@ static Sequence* eval_choose(ASTNode *node) {
 
 static Sequence* eval_rand(ASTNode *node) {
     // rand count [min max] - defaults to MIDI range 0-127
-    if (node->data.op.child_count < 1 || node->data.op.child_count > 3) { 
-        set_error("rand requires 1-3 arguments: count [min max]"); 
-        return NULL; 
+    if (node->data.op.child_count != 1 && node->data.op.child_count != 3) {
+        set_error("rand requires 1 or 3 arguments: count [min max]");
+        return NULL;
     }
     Sequence *count_seq = eval_node(node->data.op.children[0]);
     if (!count_seq || count_seq->length != 1) { 
@@ -1235,25 +1098,11 @@ static Sequence* eval_prob(ASTNode *node) {
         if (random_range(0, 99) < prob) {
             if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
         } else {
-            if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
+            if (!seq_append(result, ALIEN_REST)) { seq_free(result); seq_free(seq); return NULL; }
         }
     }
     seq_free(seq);
     return result;
-}
-
-static Sequence* eval_maybe(ASTNode *node) {
-    if (node->data.op.child_count != 3) { set_error("maybe requires 3 arguments"); return NULL; }
-    Sequence *prob_seq = eval_node(node->data.op.children[2]);
-    if (!prob_seq || prob_seq->length != 1) { set_error("maybe: probability must be single number (0-100)"); seq_free(prob_seq); return NULL; }
-    int prob = prob_seq->values[0];
-    seq_free(prob_seq);
-    // Use 0-99 range (100 values) so prob=100 always triggers, prob=0 never triggers
-    if (random_range(0, 99) < prob) {
-        return eval_node(node->data.op.children[0]);
-    } else {
-        return eval_node(node->data.op.children[1]);
-    }
 }
 
 static Sequence* eval_range(ASTNode *node) {
@@ -1305,7 +1154,7 @@ static Sequence* eval_ramp(ASTNode *node) {
     }
     for (int i = 0; i < steps; i++) {
         double t = (double)i / (steps - 1);
-        int val = start + (int)(t * (end - start));
+        int val = start + (int)round(t * (end - start));
         if (!seq_append(result, val)) { seq_free(result); return NULL; }
     }
     return result;
@@ -1341,20 +1190,30 @@ static Sequence* eval_drunk(ASTNode *node) {
         min_val = min_seq->values[0];
         max_val = max_seq->values[0];
         seq_free(min_seq); seq_free(max_seq);
+        if (max_val < min_val) { set_error("drunk: max must be >= min"); return NULL; }
         has_bounds = 1;
     }
-    
+
     Sequence *result = seq_new();
     if (!result) return NULL;
     for (int i = 0; i < steps; i++) {
         if (!seq_append(result, current)) { seq_free(result); return NULL; }
         int delta = random_range(-max_step, max_step);
         current += delta;
-        // Apply bounds if specified (reflect at boundaries)
+        // Apply bounds if specified (clamp — safe for any range including min==max)
         if (has_bounds) {
-            while (current < min_val || current > max_val) {
-                if (current < min_val) current = min_val + (min_val - current);
-                if (current > max_val) current = max_val - (current - max_val);
+            if (min_val == max_val) {
+                current = min_val;
+            } else {
+                // Reflect at boundaries with iteration limit to prevent infinite loop
+                int limit = 4;
+                while ((current < min_val || current > max_val) && limit-- > 0) {
+                    if (current < min_val) current = min_val + (min_val - current);
+                    if (current > max_val) current = max_val - (current - max_val);
+                }
+                // Final clamp as safety net
+                if (current < min_val) current = min_val;
+                if (current > max_val) current = max_val;
             }
         }
     }
@@ -1383,8 +1242,8 @@ static Sequence* eval_wrap(ASTNode *node) {
     Sequence *result = seq_new();
     if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
-        if (seq->values[i] == -1) {
-            if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
+        if (seq->values[i] == ALIEN_REST) {
+            if (!seq_append(result, ALIEN_REST)) { seq_free(result); seq_free(seq); return NULL; }
         } else {
             int val = seq->values[i];
             // Wrap to range using modulo
@@ -1413,19 +1272,23 @@ static Sequence* eval_fold(ASTNode *node) {
     seq_free(min_seq); seq_free(max_seq);
     
     if (max_val <= min_val) { set_error("fold: max must be greater than min"); seq_free(seq); return NULL; }
-    
+
     Sequence *result = seq_new();
     if (!result) { seq_free(seq); return NULL; }
     for (int i = 0; i < seq->length; i++) {
-        if (seq->values[i] == -1) {
-            if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
+        if (seq->values[i] == ALIEN_REST) {
+            if (!seq_append(result, ALIEN_REST)) { seq_free(result); seq_free(seq); return NULL; }
         } else {
             int val = seq->values[i];
-            // Fold/reflect at boundaries
-            while (val < min_val || val > max_val) {
+            // Fold/reflect at boundaries with iteration limit
+            int limit = 4;
+            while ((val < min_val || val > max_val) && limit-- > 0) {
                 if (val < min_val) val = min_val + (min_val - val);
                 if (val > max_val) val = max_val - (val - max_val);
             }
+            // Final clamp as safety net
+            if (val < min_val) val = min_val;
+            if (val > max_val) val = max_val;
             if (!seq_append(result, val)) { seq_free(result); seq_free(seq); return NULL; }
         }
     }
@@ -1465,37 +1328,11 @@ static Sequence* eval_grow(ASTNode *node) {
             if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
         }
         for (int i = len; i < seq->length; i++) {
-            if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
+            if (!seq_append(result, ALIEN_REST)) { seq_free(result); seq_free(seq); return NULL; }
         }
     }
     seq_free(seq);
     return result;
-}
-
-static Sequence* eval_degrade(ASTNode *node) {
-    if (node->data.op.child_count != 2) { set_error("degrade requires 2 arguments"); return NULL; }
-    Sequence *seq = eval_node(node->data.op.children[0]);
-    Sequence *prob_seq = eval_node(node->data.op.children[1]);
-    if (!seq || !prob_seq) { seq_free(seq); seq_free(prob_seq); return NULL; }
-    if (prob_seq->length != 1) { set_error("degrade: probability must be single number (0-100)"); seq_free(seq); seq_free(prob_seq); return NULL; }
-    int prob = prob_seq->values[0];
-    seq_free(prob_seq);
-    Sequence *result = seq_new();
-    if (!result) { seq_free(seq); return NULL; }
-    for (int i = 0; i < seq->length; i++) {
-        // Use 0-99 range (100 values) so prob=100 always degrades, prob=0 never degrades
-        if (random_range(0, 99) >= prob) {
-            if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
-        } else {
-            if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
-        }
-    }
-    seq_free(seq);
-    return result;
-}
-
-static Sequence* eval_transpose(ASTNode *node) {
-    return eval_add(node);
 }
 
 static Sequence* eval_quantize(ASTNode *node) {
@@ -1504,88 +1341,57 @@ static Sequence* eval_quantize(ASTNode *node) {
     Sequence *scale = eval_node(node->data.op.children[1]);
     if (!seq || !scale) { seq_free(seq); seq_free(scale); return NULL; }
     if (scale->length == 0) { set_error("quantize: scale cannot be empty"); seq_free(seq); seq_free(scale); return NULL; }
+    // Detect pitch-class scale (all values 0-11) for octave-aware quantization
+    int is_pitch_class = 1;
+    for (int j = 0; j < scale->length; j++) {
+        if (scale->values[j] < 0 || scale->values[j] > 11) {
+            is_pitch_class = 0;
+            break;
+        }
+    }
+
     Sequence *result = seq_new();
     if (!result) { seq_free(seq); seq_free(scale); return NULL; }
     for (int i = 0; i < seq->length; i++) {
-        if (seq->values[i] == -1) {
-            if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); seq_free(scale); return NULL; }
+        if (seq->values[i] == ALIEN_REST) {
+            if (!seq_append(result, ALIEN_REST)) { seq_free(result); seq_free(seq); seq_free(scale); return NULL; }
             continue;
         }
-        int nearest = scale->values[0];
-        int min_dist = abs(seq->values[i] - nearest);
-        for (int j = 1; j < scale->length; j++) {
-            int dist = abs(seq->values[i] - scale->values[j]);
-            if (dist < min_dist) {
-                min_dist = dist;
-                nearest = scale->values[j];
+        int quantized;
+        if (is_pitch_class) {
+            // Octave-aware: match pitch class, preserve octave
+            int note = seq->values[i];
+            int octave = note / 12;
+            int pc = note % 12;
+            if (pc < 0) { pc += 12; octave--; }
+            int nearest_pc = scale->values[0];
+            int min_dist = abs(pc - nearest_pc);
+            if (min_dist > 6) min_dist = 12 - min_dist;
+            for (int j = 1; j < scale->length; j++) {
+                int d = abs(pc - scale->values[j]);
+                if (d > 6) d = 12 - d;
+                if (d < min_dist) {
+                    min_dist = d;
+                    nearest_pc = scale->values[j];
+                }
+            }
+            quantized = octave * 12 + nearest_pc;
+        } else {
+            // Absolute matching
+            quantized = scale->values[0];
+            int min_dist = abs(seq->values[i] - quantized);
+            for (int j = 1; j < scale->length; j++) {
+                int dist = abs(seq->values[i] - scale->values[j]);
+                if (dist < min_dist) {
+                    min_dist = dist;
+                    quantized = scale->values[j];
+                }
             }
         }
-        if (!seq_append(result, nearest)) { seq_free(result); seq_free(seq); seq_free(scale); return NULL; }
+        if (!seq_append(result, quantized)) { seq_free(result); seq_free(seq); seq_free(scale); return NULL; }
     }
     seq_free(seq); seq_free(scale);
     return result;
-}
-
-static Sequence* build_chord(int root, int type) {
-    Sequence *result = seq_new();
-    if (!result) return NULL;
-    switch (type) {
-        case 0: // major
-            if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 7)) { seq_free(result); return NULL; } break;
-        case 1: // minor
-            if (!seq_append(result, root) || !seq_append(result, root + 3) || !seq_append(result, root + 7)) { seq_free(result); return NULL; } break;
-        case 2: // dim
-            if (!seq_append(result, root) || !seq_append(result, root + 3) || !seq_append(result, root + 6)) { seq_free(result); return NULL; } break;
-        case 3: // aug
-            if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 8)) { seq_free(result); return NULL; } break;
-        case 4: // maj7
-            if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 7) || !seq_append(result, root + 11)) { seq_free(result); return NULL; } break;
-        case 5: // min7
-            if (!seq_append(result, root) || !seq_append(result, root + 3) || !seq_append(result, root + 7) || !seq_append(result, root + 10)) { seq_free(result); return NULL; } break;
-        case 6: // dom7
-            if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 7) || !seq_append(result, root + 10)) { seq_free(result); return NULL; } break;
-        case 7: // dim7
-            if (!seq_append(result, root) || !seq_append(result, root + 3) || !seq_append(result, root + 6) || !seq_append(result, root + 9)) { seq_free(result); return NULL; } break;
-        case 8: // sus2
-            if (!seq_append(result, root) || !seq_append(result, root + 2) || !seq_append(result, root + 7)) { seq_free(result); return NULL; } break;
-        case 9: // sus4
-            if (!seq_append(result, root) || !seq_append(result, root + 5) || !seq_append(result, root + 7)) { seq_free(result); return NULL; } break;
-        default: // major
-            if (!seq_append(result, root) || !seq_append(result, root + 4) || !seq_append(result, root + 7)) { seq_free(result); return NULL; }
-    }
-    return result;
-}
-
-static Sequence* eval_chord(ASTNode *node) {
-    if (node->data.op.child_count < 1 || node->data.op.child_count > 2) { 
-        set_error("chord requires 1 or 2 arguments"); 
-        return NULL; 
-    }
-    
-    // Check if first arg is a chord name symbol (parsed during tokenization won't work here)
-    // So we use the 2-arg form: (chord root type) or 1-arg with note name
-    Sequence *root_seq = eval_node(node->data.op.children[0]);
-    if (!root_seq || root_seq->length != 1) { 
-        set_error("chord: root must be single number or note name"); 
-        seq_free(root_seq); 
-        return NULL; 
-    }
-    int root = root_seq->values[0];
-    seq_free(root_seq);
-    
-    int type = 0; // default major
-    if (node->data.op.child_count == 2) {
-        Sequence *type_seq = eval_node(node->data.op.children[1]);
-        if (!type_seq || type_seq->length != 1) { 
-            set_error("chord: type must be single number"); 
-            seq_free(type_seq); 
-            return NULL; 
-        }
-        type = type_seq->values[0];
-        seq_free(type_seq);
-    }
-    
-    return build_chord(root, type);
 }
 
 static Sequence* eval_arp(ASTNode *node) {
@@ -1621,24 +1427,6 @@ static Sequence* eval_arp(ASTNode *node) {
     return result;
 }
 
-static Sequence* eval_delay(ASTNode *node) {
-    if (node->data.op.child_count != 2) { set_error("delay requires 2 arguments"); return NULL; }
-    Sequence *seq = eval_node(node->data.op.children[0]);
-    Sequence *n_seq = eval_node(node->data.op.children[1]);
-    if (!seq || !n_seq) { seq_free(seq); seq_free(n_seq); return NULL; }
-    if (n_seq->length != 1 || n_seq->values[0] < 0) { set_error("delay: n must be non-negative number"); seq_free(seq); seq_free(n_seq); return NULL; }
-    int n = n_seq->values[0];
-    seq_free(n_seq);
-    Sequence *result = seq_new();
-    if (!result) { seq_free(seq); return NULL; }
-    for (int i = 0; i < n; i++) {
-        if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
-    }
-    if (!seq_extend(result, seq)) { seq_free(result); seq_free(seq); return NULL; }
-    seq_free(seq);
-    return result;
-}
-
 static Sequence* eval_gate(ASTNode *node) {
     if (node->data.op.child_count != 2) { set_error("gate requires 2 arguments"); return NULL; }
     Sequence *seq = eval_node(node->data.op.children[0]);
@@ -1653,8 +1441,69 @@ static Sequence* eval_gate(ASTNode *node) {
         if (i % n == 0) {
             if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
         } else {
-            if (!seq_append(result, -1)) { seq_free(result); seq_free(seq); return NULL; }
+            if (!seq_append(result, ALIEN_REST)) { seq_free(result); seq_free(seq); return NULL; }
         }
+    }
+    seq_free(seq);
+    return result;
+}
+
+static Sequence* eval_speed(ASTNode *node) {
+    if (node->data.op.child_count != 2) { set_error("speed requires 2 arguments"); return NULL; }
+    Sequence *seq = eval_node(node->data.op.children[0]);
+    Sequence *div_seq = eval_node(node->data.op.children[1]);
+    if (!seq || !div_seq) { seq_free(seq); seq_free(div_seq); return NULL; }
+    if (div_seq->length != 1 || div_seq->values[0] <= 0) { set_error("speed: division must be positive number"); seq_free(seq); seq_free(div_seq); return NULL; }
+    int div = div_seq->values[0];
+    seq_free(div_seq);
+    Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
+    for (int i = 0; i < seq->length; i++) {
+        if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
+        for (int j = 1; j < div; j++) {
+            if (!seq_append(result, ALIEN_REST)) { seq_free(result); seq_free(seq); return NULL; }
+        }
+    }
+    seq_free(seq);
+    return result;
+}
+
+static Sequence* eval_mask(ASTNode *node) {
+    if (node->data.op.child_count != 2) { set_error("mask requires 2 arguments"); return NULL; }
+    Sequence *source = eval_node(node->data.op.children[0]);
+    Sequence *gate = eval_node(node->data.op.children[1]);
+    if (!source || !gate) { seq_free(source); seq_free(gate); return NULL; }
+    if (source->length == 0) { seq_free(source); seq_free(gate); return seq_new(); }
+    Sequence *result = seq_new();
+    if (!result) { seq_free(source); seq_free(gate); return NULL; }
+    int src_idx = 0;
+    for (int i = 0; i < gate->length; i++) {
+        if (gate->values[i] != ALIEN_REST) {
+            if (!seq_append(result, source->values[src_idx % source->length])) {
+                seq_free(result); seq_free(source); seq_free(gate); return NULL;
+            }
+            src_idx++;
+        } else {
+            if (!seq_append(result, ALIEN_REST)) {
+                seq_free(result); seq_free(source); seq_free(gate); return NULL;
+            }
+        }
+    }
+    seq_free(source); seq_free(gate);
+    return result;
+}
+
+static Sequence* eval_mirror(ASTNode *node) {
+    if (node->data.op.child_count != 1) { set_error("mirror requires 1 argument"); return NULL; }
+    Sequence *seq = eval_node(node->data.op.children[0]);
+    if (!seq) return NULL;
+    Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
+    for (int i = 0; i < seq->length; i++) {
+        if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
+    }
+    for (int i = seq->length - 2; i >= 0; i--) {
+        if (!seq_append(result, seq->values[i])) { seq_free(result); seq_free(seq); return NULL; }
     }
     seq_free(seq);
     return result;
@@ -1666,50 +1515,62 @@ static Sequence* eval_gate(ASTNode *node) {
 
 static Sequence* eval_node(ASTNode *node) {
     if (!node) return NULL;
-    switch (node->type) {
-        case NODE_NUMBER: { Sequence *seq = seq_new(); if (seq && !seq_append(seq, node->data.number)) { seq_free(seq); return NULL; } return seq; }
-        case NODE_HYPHEN: { Sequence *seq = seq_new(); if (seq && !seq_append(seq, -1)) { seq_free(seq); return NULL; } return seq; }
-        case NODE_SEQ: return eval_seq(node);
-        case NODE_REP: return eval_rep(node);
-        case NODE_ADD: return eval_add(node);
-        case NODE_MUL: return eval_mul(node);
-        case NODE_MOD: return eval_mod(node);
-        case NODE_SCALE: return eval_scale(node);
-        case NODE_CLAMP: return eval_clamp(node);
-        case NODE_EUCLID: return eval_euclid(node);
-        case NODE_BJORK: return eval_bjork(node);
-        case NODE_SUBDIV: return eval_subdiv(node);
-        case NODE_REVERSE: return eval_reverse(node);
-        case NODE_ROTATE: return eval_rotate(node);
-        case NODE_PALINDROME: return eval_palindrome(node);
-        case NODE_MIRROR: return eval_mirror(node);
-        case NODE_INTERLEAVE: return eval_interleave(node);
-        case NODE_SHUFFLE: return eval_shuffle(node);
-        case NODE_TAKE: return eval_take(node);
-        case NODE_DROP: return eval_drop(node);
-        case NODE_EVERY: return eval_every(node);
-        case NODE_SLICE: return eval_slice(node);
-        case NODE_FILTER: return eval_filter(node);
-        case NODE_CHOOSE: return eval_choose(node);
-        case NODE_RAND: return eval_rand(node);
-        case NODE_PROB: return eval_prob(node);
-        case NODE_MAYBE: return eval_maybe(node);
-        case NODE_RANGE: return eval_range(node);
-        case NODE_RAMP: return eval_ramp(node);
-        case NODE_DRUNK: return eval_drunk(node);
-        case NODE_WRAP: return eval_wrap(node);
-        case NODE_FOLD: return eval_fold(node);
-        case NODE_CYCLE: return eval_cycle(node);
-        case NODE_GROW: return eval_grow(node);
-        case NODE_DEGRADE: return eval_degrade(node);
-        case NODE_TRANSPOSE: return eval_transpose(node);
-        case NODE_QUANTIZE: return eval_quantize(node);
-        case NODE_CHORD: return eval_chord(node);
-        case NODE_ARP: return eval_arp(node);
-        case NODE_DELAY: return eval_delay(node);
-        case NODE_GATE: return eval_gate(node);
-        default: set_error("Unknown node type"); return NULL;
+    if (++g_eval_depth > ALIEN_MAX_DEPTH) {
+        set_error("Maximum evaluation depth exceeded");
+        g_eval_depth--;
+        return NULL;
     }
+    Sequence *result = NULL;
+    switch (node->type) {
+        case NODE_NUMBER: {
+            result = seq_new();
+            if (result && !seq_append(result, node->data.number)) { seq_free(result); result = NULL; }
+            break;
+        }
+        case NODE_HYPHEN: {
+            result = seq_new();
+            if (result && !seq_append(result, ALIEN_REST)) { seq_free(result); result = NULL; }
+            break;
+        }
+        case NODE_SEQ: result = eval_seq(node); break;
+        case NODE_REP: result = eval_rep(node); break;
+        case NODE_ADD: result = eval_add(node); break;
+        case NODE_SUB: result = eval_sub(node); break;
+        case NODE_MUL: result = eval_mul(node); break;
+        case NODE_MOD: result = eval_mod(node); break;
+        case NODE_SCALE: result = eval_scale(node); break;
+        case NODE_CLAMP: result = eval_clamp(node); break;
+        case NODE_EUCLID: result = eval_euclid(node); break;
+        case NODE_SUBDIV: result = eval_subdiv(node); break;
+        case NODE_REVERSE: result = eval_reverse(node); break;
+        case NODE_ROTATE: result = eval_rotate(node); break;
+        case NODE_INTERLEAVE: result = eval_interleave(node); break;
+        case NODE_SHUFFLE: result = eval_shuffle(node); break;
+        case NODE_TAKE: result = eval_take(node); break;
+        case NODE_DROP: result = eval_drop(node); break;
+        case NODE_EVERY: result = eval_every(node); break;
+        case NODE_SLICE: result = eval_slice(node); break;
+        case NODE_FILTER: result = eval_filter(node); break;
+        case NODE_CHOOSE: result = eval_choose(node); break;
+        case NODE_RAND: result = eval_rand(node); break;
+        case NODE_PROB: result = eval_prob(node); break;
+        case NODE_RANGE: result = eval_range(node); break;
+        case NODE_RAMP: result = eval_ramp(node); break;
+        case NODE_DRUNK: result = eval_drunk(node); break;
+        case NODE_WRAP: result = eval_wrap(node); break;
+        case NODE_FOLD: result = eval_fold(node); break;
+        case NODE_CYCLE: result = eval_cycle(node); break;
+        case NODE_GROW: result = eval_grow(node); break;
+        case NODE_QUANTIZE: result = eval_quantize(node); break;
+        case NODE_ARP: result = eval_arp(node); break;
+        case NODE_GATE: result = eval_gate(node); break;
+        case NODE_SPEED: result = eval_speed(node); break;
+        case NODE_MASK: result = eval_mask(node); break;
+        case NODE_MIRROR: result = eval_mirror(node); break;
+        default: set_error("Unknown node type"); break;
+    }
+    g_eval_depth--;
+    return result;
 }
 
 #endif // ALIEN_CORE_H

@@ -7,7 +7,7 @@
  *   [alien kick -unsync] - named mode: independent (no sync batching)
  *
  * Named instances share a sync clock. Pattern changes arriving within
- * 5ms are batched — all entangled instances output their new patterns
+ * 100ms are batched — all entangled instances output their new patterns
  * simultaneously. Feed the output to [else/sequencer] for stepping.
  */
 
@@ -16,7 +16,7 @@
 static t_class *alien_class;
 
 #define ALIEN_MAX_STEPS 1024
-#define ALIEN_SYNC_DELAY_MS 5.0
+#define ALIEN_SYNC_DELAY_MS 100.0
 #define ALIEN_GROUP_INIT_CAP 16
 
 // ============================================================================
@@ -64,26 +64,7 @@ static void group_register(t_alien *x) {
     }
 }
 
-static void group_unregister(t_alien *x) {
-    for (int i = 0; i < g_group.count; i++) {
-        if (g_group.instances[i] == x) {
-            g_group.instances[i] = g_group.instances[--g_group.count];
-            break;
-        }
-    }
-    if (g_group.clock_owner == x) {
-        if (g_group.count > 0) {
-            g_group.clock_owner = g_group.instances[0];
-            t_clock *old = g_group.sync_clock;
-            g_group.sync_clock = clock_new(g_group.clock_owner, (t_method)alien_sync_tick);
-            clock_free(old);
-        } else {
-            clock_free(g_group.sync_clock);
-            g_group.sync_clock = NULL;
-            g_group.clock_owner = NULL;
-        }
-    }
-}
+static void group_unregister(t_alien *x);  // implemented after struct definition
 
 static void group_register_transport(t_alien_transport *x) {
     if (g_group.transports == NULL) {
@@ -132,18 +113,61 @@ struct _alien {
 };
 
 // ============================================================================
+// DEFERRED: group_unregister (needs complete t_alien definition)
+// ============================================================================
+
+static void group_unregister(t_alien *x) {
+    for (int i = 0; i < g_group.count; i++) {
+        if (g_group.instances[i] == x) {
+            g_group.instances[i] = g_group.instances[--g_group.count];
+            break;
+        }
+    }
+    if (g_group.clock_owner == x) {
+        if (g_group.count > 0) {
+            // Check if any instances have buffered patterns pending
+            int has_pending = 0;
+            for (int i = 0; i < g_group.count; i++) {
+                if (g_group.instances[i]->x_has_buffer) { has_pending = 1; break; }
+            }
+            g_group.clock_owner = g_group.instances[0];
+            t_clock *old = g_group.sync_clock;
+            g_group.sync_clock = clock_new(g_group.clock_owner, (t_method)alien_sync_tick);
+            clock_free(old);
+            // Reschedule if patterns were waiting on the old clock
+            if (has_pending) {
+                clock_delay(g_group.sync_clock, ALIEN_SYNC_DELAY_MS);
+            }
+        } else {
+            clock_free(g_group.sync_clock);
+            g_group.sync_clock = NULL;
+            g_group.clock_owner = NULL;
+        }
+    }
+}
+
+// ============================================================================
 // PATTERN EVALUATION
 // ============================================================================
 
+#define ALIEN_MAX_TOKENS 4096
+
 static int alien_evaluate_to_atoms(t_alien *x, const char *input, t_atom *out, int max_len) {
-    Token tokens[4096];
-    int token_count = tokenize(input, tokens, 4096);
+    Token *tokens = (Token *)getbytes(sizeof(Token) * ALIEN_MAX_TOKENS);
+    if (!tokens) {
+        pd_error(x, "alien: memory allocation failed for tokens");
+        return 0;
+    }
+
+    int token_count = tokenize(input, tokens, ALIEN_MAX_TOKENS);
     if (token_count < 0) {
         pd_error(x, "alien: %s", g_error_message);
+        freebytes(tokens, sizeof(Token) * ALIEN_MAX_TOKENS);
         return 0;
     }
 
     ASTNode *ast = parse(tokens, token_count);
+    freebytes(tokens, sizeof(Token) * ALIEN_MAX_TOKENS);
     if (!ast) {
         pd_error(x, "alien: %s", g_error_message);
         return 0;
@@ -158,7 +182,7 @@ static int alien_evaluate_to_atoms(t_alien *x, const char *input, t_atom *out, i
 
     int len = (result->length < max_len) ? result->length : max_len;
     for (int i = 0; i < len; i++) {
-        if (result->values[i] == -1) {
+        if (result->values[i] == ALIEN_REST) {
             SETSYMBOL(&out[i], gensym("-"));
         } else {
             SETFLOAT(&out[i], (t_float)result->values[i]);
@@ -186,9 +210,18 @@ static void alien_output_pattern(t_alien *x) {
 // ============================================================================
 
 static void alien_anything_generator(t_alien *x, t_symbol *s, int argc, t_atom *argv) {
-    char input[16384];
+    #define ALIEN_INPUT_BUF 16384
+    char *input = (char *)getbytes(ALIEN_INPUT_BUF);
+    t_atom *out = (t_atom *)getbytes(sizeof(t_atom) * ALIEN_MAX_STEPS);
+    if (!input || !out) {
+        pd_error(x, "alien: memory allocation failed");
+        if (input) freebytes(input, ALIEN_INPUT_BUF);
+        if (out) freebytes(out, sizeof(t_atom) * ALIEN_MAX_STEPS);
+        return;
+    }
+
     char *p = input;
-    size_t remaining = sizeof(input) - 1;
+    size_t remaining = ALIEN_INPUT_BUF - 1;
 
     int len = snprintf(p, remaining, "%s", s->s_name);
     if (len > 0 && (size_t)len < remaining) { p += len; remaining -= len; }
@@ -205,11 +238,14 @@ static void alien_anything_generator(t_alien *x, t_symbol *s, int argc, t_atom *
     }
     *p = '\0';
 
-    t_atom out[ALIEN_MAX_STEPS];
     int out_len = alien_evaluate_to_atoms(x, input, out, ALIEN_MAX_STEPS);
     if (out_len > 0) {
         outlet_list(x->x_list_out, &s_list, out_len, out);
     }
+
+    freebytes(input, ALIEN_INPUT_BUF);
+    freebytes(out, sizeof(t_atom) * ALIEN_MAX_STEPS);
+    #undef ALIEN_INPUT_BUF
 }
 
 // ============================================================================
@@ -372,9 +408,11 @@ static void *alien_new(t_symbol *s, int argc, t_atom *argv) {
     x->x_entangled = 0;
     x->x_local_clock = clock_new(x, (t_method)alien_local_tick);
 
+    // Always create the outlet so the object is safe even on error paths
+    x->x_list_out = outlet_new(&x->x_obj, &s_list);
+
     if (argc == 0) {
         // Generator mode: expression in, list out
-        x->x_list_out = outlet_new(&x->x_obj, &s_list);
     } else {
         // Named mode
         if (argv[0].a_type == A_SYMBOL) {
@@ -392,9 +430,6 @@ static void *alien_new(t_symbol *s, int argc, t_atom *argv) {
                 unsync = 1;
             }
         }
-
-        // Single list outlet
-        x->x_list_out = outlet_new(&x->x_obj, &s_list);
 
         // Bind to own name and shared "alien" for broadcast
         pd_bind(&x->x_obj.ob_pd, x->x_name);
@@ -428,7 +463,7 @@ static t_class *alien_transport_class;
 
 struct _alien_transport {
     t_object x_obj;
-    int x_count;
+    unsigned int x_count;
     int x_frozen;           // suppress outlets while waiting for sync
     t_outlet *x_out[5];     // 0:raw, 1:/2, 2:/4, 3:/8, 4:/16
 };
@@ -450,13 +485,13 @@ static void transport_reset(t_alien_transport *x) {
 static void transport_bang(t_alien_transport *x) {
     if (x->x_frozen) return; // suppress ticks while waiting for patterns
 
-    int c = x->x_count++;
+    unsigned int c = x->x_count++;
 
     // Fire right-to-left (Pd outlet convention)
-    if ((c % 16) == 1) outlet_bang(x->x_out[4]);
-    if ((c % 8) == 1)  outlet_bang(x->x_out[3]);
-    if ((c % 4) == 1)  outlet_bang(x->x_out[2]);
-    if ((c % 2) == 1)  outlet_bang(x->x_out[1]);
+    if ((c % 16) == 0) outlet_bang(x->x_out[4]);
+    if ((c % 8) == 0)  outlet_bang(x->x_out[3]);
+    if ((c % 4) == 0)  outlet_bang(x->x_out[2]);
+    if ((c % 2) == 0)  outlet_bang(x->x_out[1]);
     outlet_bang(x->x_out[0]);
 }
 

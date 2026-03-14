@@ -60,7 +60,6 @@ Send a pattern, get a list:
 (euclid 3 8)                    ; Euclidean: 1 - - 1 - - 1 -
 (euclid (seq 60 64 67) 8)       ; with melody: 60 - - 64 - - 67 -
 (euclid 5 16 2)                 ; with rotation
-(bjork 5 13)                    ; Bjorklund algorithm
 (subdiv (seq 1 2) 3)            ; subdivide: 1 1 1 2 2 2
 ```
 
@@ -69,8 +68,6 @@ Send a pattern, get a list:
 ```lisp
 (reverse (seq 1 2 3))           ; 3 2 1
 (rotate (seq 1 2 3 4) 1)        ; 2 3 4 1
-(palindrome (seq 1 2 3))        ; 1 2 3 2 1
-(mirror (seq 1 2 3))            ; 1 2 3 3 2 1
 (interleave (seq 1 2) (seq 3 4)); 1 3 2 4
 (shuffle (seq 1 2 3 4))         ; random order
 ```
@@ -89,6 +86,7 @@ Send a pattern, get a list:
 
 ```lisp
 (add (seq 60 62 64) 12)         ; 72 74 76
+(sub (seq 72 76 79) 12)         ; 60 64 67
 (mul (seq 1 2 3) 2)             ; 2 4 6
 (mod (seq 10 11 12) 12)         ; 10 11 0
 (scale (seq 0 64 127) 0 127 60 72)  ; map range
@@ -104,33 +102,24 @@ Send a pattern, get a list:
 (rand 4)                        ; 4 random values 0-127
 (rand 4 60 72)                  ; 4 random values 60-72
 (prob (seq 1 2 3 4) 50)         ; 50% chance each
-(maybe 60 72 30)                ; 30% chance of 60, else 72
 (drunk 8 2 60)                  ; random walk: 8 steps, ±2, start 60
 (drunk 8 3 60 48 72)            ; bounded random walk
-(degrade (seq 1 2 3 4) 25)      ; 25% become rests
 ```
 
 ### Musical
 
 ```lisp
-(transpose (seq 60 64 67) 5)    ; 65 69 72
 (quantize (seq 61 63 66) (seq 0 2 4 5 7 9 11))  ; snap to scale
-(chord 60)                      ; 60 64 67 (major)
-(chord 60 1)                    ; 60 63 67 (minor)
-(chord 60 4)                    ; 60 64 67 71 (maj7)
-(arp (chord 60) 0 8)            ; arpeggiate up, 8 steps
-(arp (chord 60) 1 8)            ; arpeggiate down
-(arp (chord 60) 2 8)            ; arpeggiate up-down
+(arp (seq 60 64 67) 0 8)        ; arpeggiate up, 8 steps
+(arp (seq 60 64 67) 1 8)        ; arpeggiate down
+(arp (seq 60 64 67) 2 8)        ; arpeggiate up-down
 ```
-
-**Chord types:** 0=maj, 1=min, 2=dim, 3=aug, 4=maj7, 5=min7, 6=dom7, 7=dim7, 8=sus2, 9=sus4
 
 ### Structure
 
 ```lisp
 (cycle (seq 1 2 3) 8)           ; 1 2 3 1 2 3 1 2
 (grow (seq 1 2 3 4))            ; 1, 1 2, 1 2 3, 1 2 3 4
-(delay (seq 1 2 3) 2)           ; - - 1 2 3
 (gate (seq 1 2 3 4) 2)          ; 1 - 2 - 3 - 4 -
 ```
 
@@ -149,9 +138,9 @@ Send a pattern, get a list:
 Patterns nest freely:
 
 ```lisp
-(euclid (arp (chord 60) 0 4) 16)
+(euclid (arp (seq 60 64 67) 0 4) 16)
 (interleave (euclid 3 8) (euclid 5 8))
-(transpose (shuffle (seq 60 64 67 71)) (choose 0 12 -12))
+(add (shuffle (seq 60 64 67 71)) (choose 0 12))
 ```
 
 ---
@@ -183,12 +172,6 @@ Test patterns without Pd:
 
 ```
 [; lead (fold (drunk 16 3 60) 48 72)]
-```
-
-### Chord progression
-
-```
-[; pad (seq (chord 60) (chord 65) (chord 67) (chord 60))]
 ```
 
 ### Polyrhythm

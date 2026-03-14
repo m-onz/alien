@@ -46,7 +46,7 @@ int process_input(const char *input, char *output, size_t output_size) {
         }
 
         int written;
-        if (result->values[i] == -1) {
+        if (result->values[i] == ALIEN_REST) {
             written = snprintf(p, remaining, "-");
         } else {
             written = snprintf(p, remaining, "%d", result->values[i]);
@@ -90,6 +90,7 @@ TestCase tests[] = {
 
     // Arithmetic
     {"(add (seq 1 2 3) 5)", "6 7 8", "add to sequence"},
+    {"(sub (seq 72 - 64) 12)", "60 - 52", "subtract from sequence"},
     {"(mul (seq 1 2 3) 2)", "2 4 6", "multiply sequence"},
     {"(mod (seq 8 9 10) 7)", "1 2 3", "modulo sequence"},
 
@@ -101,7 +102,6 @@ TestCase tests[] = {
     // List manipulation
     {"(reverse (seq 1 2 3))", "3 2 1", "reverse sequence"},
     {"(rotate (seq 1 2 3 4) 1)", "4 1 2 3", "rotate right"},
-    {"(palindrome (seq 1 2 3))", "1 2 3 2 1", "palindrome"},
     {"(interleave (seq 1 2 3) (seq - - -))", "1 - 2 - 3 -", "interleave two sequences"},
 
     // Selection
@@ -117,13 +117,20 @@ TestCase tests[] = {
     // Logic
     {"(cycle (seq 1 2 3) 8)", "1 2 3 1 2 3 1 2", "cycle pattern"},
 
-    // Musical
-    {"(transpose (seq 60 64 67) 5)", "65 69 72", "transpose up 5"},
-    {"(chord 60 0)", "60 64 67", "C major chord"},
-
     // Time/phase
-    {"(delay (seq 1 2 3) 2)", "- - 1 2 3", "delay by 2"},
     {"(gate (seq 1 2 3 4 5 6) 2)", "1 - 3 - 5 -", "gate every 2"},
+    {"(speed (seq 1 2 3) 4)", "1 - - - 2 - - - 3 - - -", "speed by 4"},
+    {"(speed (seq 1 2 3) 2)", "1 - 2 - 3 -", "speed by 2"},
+    {"(speed (seq 1 2 3) 1)", "1 2 3", "speed by 1 (no change)"},
+    {"(speed (seq 1 - 3) 2)", "1 - - - 3 -", "speed with rests"},
+    {"(mask (seq 60 64 67 72) (euclid 3 4))", "- 60 64 67", "mask with euclidean gate"},
+    {"(mask (seq 1 2 3) (seq 1 - 1 - 1))", "1 - 2 - 3", "mask basic gating"},
+    {"(mask (seq 1 2) (seq 1 1 1 1))", "1 2 1 2", "mask cycling source"},
+    {"(mask (seq 1 2 3) (seq))", "", "mask with empty gate"},
+    {"(mirror (seq 1 2 3))", "1 2 3 2 1", "mirror palindrome"},
+    {"(mirror (seq 1))", "1", "mirror single element"},
+    {"(mirror (seq 1 2))", "1 2 1", "mirror two elements"},
+    {"(mirror (seq 60 64 67 72))", "60 64 67 72 67 64 60", "mirror MIDI notes"},
 
     // Combined
     {"(seq (rep 1 2) (rep 2 2))", "1 1 2 2", "seq of reps"},
@@ -142,6 +149,28 @@ TestCase tests[] = {
     {"(take (seq 1 2 3) 0)", "", "take zero elements"},
     {"(drop (seq 1 2 3) 10)", "", "drop more than length"},
     {"(every (seq 1) 1)", "1", "every on single element"},
+
+    // Bug fix: -1 sentinel collision — arithmetic producing -1 is not a rest
+    {"(sub (seq 0) 1)", "-1", "sub producing negative one (not rest)"},
+    {"(sub (seq 72 - 64) 73)", "-1 - -9", "sub with mixed rests and negatives"},
+
+    // Bug fix: euclid zero hits
+    {"(euclid 0 8)", "- - - - - - - -", "euclidean zero hits"},
+
+    // Bug fix: rand with exactly 2 args
+    {"(rand 4 60)", NULL, "rand with 2 arguments (invalid)"},
+
+    // Bug fix: trailing tokens
+    {"1 2 3", NULL, "trailing tokens after expression"},
+    {"(seq 1 2) (seq 3 4)", NULL, "trailing expression after first"},
+
+    // Ramp with rounding
+    {"(ramp 0 10 4)", "0 3 7 10", "ramp with rounding"},
+    {"(ramp 60 72 5)", "60 63 66 69 72", "ramp MIDI range"},
+
+    // Quantize octave-aware
+    {"(quantize (seq 61 63 66) (seq 0 2 4 5 7 9 11))", "60 62 65", "quantize octave-aware pitch class"},
+    {"(quantize (seq 1 6 10) (seq 0 4 7 11))", "0 7 11", "quantize pitch class small values"},
 
     {NULL, NULL, NULL}
 };
