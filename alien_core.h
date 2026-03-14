@@ -14,9 +14,9 @@
 
 // Version information
 #define ALIEN_VERSION_MAJOR 0
-#define ALIEN_VERSION_MINOR 4
+#define ALIEN_VERSION_MINOR 5
 #define ALIEN_VERSION_PATCH 0
-#define ALIEN_VERSION_STRING "0.4.0"
+#define ALIEN_VERSION_STRING "0.5.0"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -124,7 +124,8 @@ typedef enum {
     NODE_GATE,
     NODE_SPEED,
     NODE_MASK,
-    NODE_MIRROR
+    NODE_MIRROR,
+    NODE_DELAY
 } NodeType;
 
 typedef struct ASTNode {
@@ -515,6 +516,7 @@ static ASTNode* parse_list(Parser *p) {
     else if (strcmp(op, "speed") == 0) node = ast_new_op(NODE_SPEED);
     else if (strcmp(op, "mask") == 0) node = ast_new_op(NODE_MASK);
     else if (strcmp(op, "mirror") == 0) node = ast_new_op(NODE_MIRROR);
+    else if (strcmp(op, "delay") == 0) node = ast_new_op(NODE_DELAY);
     else {
         set_error("Unknown operator");
         return NULL;
@@ -1509,6 +1511,24 @@ static Sequence* eval_mirror(ASTNode *node) {
     return result;
 }
 
+static Sequence* eval_delay(ASTNode *node) {
+    if (node->data.op.child_count != 2) { set_error("delay requires 2 arguments"); return NULL; }
+    Sequence *seq = eval_node(node->data.op.children[0]);
+    Sequence *n_seq = eval_node(node->data.op.children[1]);
+    if (!seq || !n_seq) { seq_free(seq); seq_free(n_seq); return NULL; }
+    if (n_seq->length != 1 || n_seq->values[0] < 0) { set_error("delay: n must be non-negative number"); seq_free(seq); seq_free(n_seq); return NULL; }
+    int n = n_seq->values[0];
+    seq_free(n_seq);
+    Sequence *result = seq_new();
+    if (!result) { seq_free(seq); return NULL; }
+    for (int i = 0; i < n; i++) {
+        if (!seq_append(result, ALIEN_REST)) { seq_free(result); seq_free(seq); return NULL; }
+    }
+    if (!seq_extend(result, seq)) { seq_free(result); seq_free(seq); return NULL; }
+    seq_free(seq);
+    return result;
+}
+
 // ============================================================================
 // EVALUATOR DISPATCHER
 // ============================================================================
@@ -1567,6 +1587,7 @@ static Sequence* eval_node(ASTNode *node) {
         case NODE_SPEED: result = eval_speed(node); break;
         case NODE_MASK: result = eval_mask(node); break;
         case NODE_MIRROR: result = eval_mirror(node); break;
+        case NODE_DELAY: result = eval_delay(node); break;
         default: set_error("Unknown node type"); break;
     }
     g_eval_depth--;
