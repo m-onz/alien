@@ -8,6 +8,8 @@ A **Lisp-like pattern language** for algorithmic music in [Pure Data](https://pu
 (euclid (seq 60 64 67) 8)  →  60 - - 64 - - 67 -
 ```
 
+See [this repo for the complete toolkit](https://github.com/m-onz/alien-av-toolkit)
+
 ## Installation
 
 ```bash
