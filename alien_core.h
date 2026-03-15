@@ -800,7 +800,8 @@ static Sequence* eval_clamp(ASTNode *node) {
 }
 
 static Sequence* eval_euclid(ASTNode *node) {
-    if (node->data.op.child_count < 2 || node->data.op.child_count > 3) { set_error("euclid requires 2 or 3 arguments"); return NULL; }
+    // euclid hits steps [rotation [hit_value]]
+    if (node->data.op.child_count < 2 || node->data.op.child_count > 4) { set_error("euclid requires 2-4 arguments: hits steps [rotation [hit_value]]"); return NULL; }
 
     Sequence *pattern_seq = eval_node(node->data.op.children[0]);
     Sequence *steps_seq = eval_node(node->data.op.children[1]);
@@ -838,11 +839,22 @@ static Sequence* eval_euclid(ASTNode *node) {
     }
 
     int rotation = 0;
-    if (node->data.op.child_count == 3) {
+    if (node->data.op.child_count >= 3) {
         Sequence *rot_seq = eval_node(node->data.op.children[2]);
         if (!rot_seq || rot_seq->length != 1) { set_error("euclid: rotation must be single number"); seq_free(rot_seq); seq_free(pattern_seq); return NULL; }
         rotation = rot_seq->values[0];
         seq_free(rot_seq);
+    }
+
+    // Optional hit value (4th arg) — overrides the default 1 for numeric hit counts
+    if (node->data.op.child_count == 4 && is_hit_count) {
+        Sequence *val_seq = eval_node(node->data.op.children[3]);
+        if (!val_seq || val_seq->length != 1) { set_error("euclid: hit_value must be single number"); seq_free(val_seq); seq_free(pattern_seq); return NULL; }
+        seq_free(pattern_seq);
+        pattern_seq = seq_new();
+        if (!pattern_seq) { seq_free(val_seq); return NULL; }
+        if (!seq_append(pattern_seq, val_seq->values[0])) { seq_free(pattern_seq); seq_free(val_seq); return NULL; }
+        seq_free(val_seq);
     }
 
     int *euclid_pattern = (int*)ALIEN_MALLOC(sizeof(int) * steps);
