@@ -327,8 +327,10 @@ static int tokenize(const char *input, Token *tokens, int max_tokens) {
         } else if (*p == '-' && !isdigit(*(p+1))) {
             tok->type = TOK_HYPHEN;
             p++; column++;
-        } else if (isdigit(*p)) {
+        } else if (isdigit(*p) || (*p == '-' && isdigit(*(p+1)))) {
             tok->type = TOK_NUMBER;
+            int sign = 1;
+            if (*p == '-') { sign = -1; p++; column++; }
             long num = 0;
             while (isdigit(*p)) {
                 long digit = *p - '0';
@@ -340,7 +342,7 @@ static int tokenize(const char *input, Token *tokens, int max_tokens) {
                 num = num * 10 + digit;
                 p++; column++;
             }
-            tok->value.number = (int)num;
+            tok->value.number = (int)(sign * num);
         } else if (*p == '.' || *p == '_') {
             // Alternative rest symbols: . _
             if (*(p+1) == '\0' || isspace(*(p+1)) || *(p+1) == ')' || *(p+1) == '(') {
