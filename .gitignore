@@ -5,6 +5,9 @@
 *.o
 alien_parser
 seqgen
+novelty/ns_parser
+novelty/ns_system_test
+novelty/validate_seeds
 
 # macOS
 .DS_Store
