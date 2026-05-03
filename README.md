@@ -654,55 +654,6 @@ Test patterns without Pd:
 
 ---
 
-## Evolved patterns — `[novelty_engine]`
-
-For when you don't want to write the pattern yourself, the `novelty/`
-subdirectory contains an evolutionary search system that proposes,
-mutates, and admits patterns based on novelty + quality. The headline
-abstraction is `[novelty_engine]`:
-
-```
-        bang ──→ [novelty_engine] ──→ rendered sequence
-```
-
-Bang it and a freshly evolved pattern comes out the outlet — already
-rendered as a list of values and rests, ready to feed `[else/sequencer]`
-or any step-driver. Internally each bang:
-
-1. Samples a parent from a corpus (auto-loaded with 81 hand-curated
-   seed patterns covering every operator)
-2. Mutates the parent into a child via AST-level operations
-3. Evaluates the child via `[alien]`
-4. Scores phenotypic novelty (how different the rendered output is
-   from previous outputs) and genotypic novelty (how different the AST
-   shape is from previous trees)
-5. Scores quality (length, rest density, value variety)
-6. Admits the child to the corpus if it passes both novelty + quality
-   gates — admitted children become parents for future bangs
-
-The search is **domain-agnostic**: the same machinery evolves MIDI
-patterns, sample-bank index streams, parameter-control sequences, or
-anything else where the integers in a sequence drive *something*.
-
-```
-[bng]──┐
-       ├──→ [novelty_engine] ──→ [else/sequencer 8]
-[metro 250]──┘                          │
-                                        ↓
-                                   [tabread~ kick]
-```
-
-See `novelty/README.md` for the full architecture — the engine is built
-on a six-role framework (Producer / Renderer / Projector / Memory /
-Filter / Logger), and every wire is tappable for inspection.
-
-```bash
-cd novelty
-make           # build the externals + CLIs
-```
-
----
-
 ## Operator Quick Reference
 
 | Operator | Args | Description |
