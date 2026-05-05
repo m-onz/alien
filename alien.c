@@ -185,10 +185,7 @@ static int alien_evaluate_to_atoms(t_alien *x, const char *input, t_atom *out, i
         if (result->values[i] == ALIEN_REST) {
             SETSYMBOL(&out[i], gensym("-"));
         } else {
-            int v = result->values[i];
-            if (v < 0) v = 0;
-            else if (v > 255) v = 255;
-            SETFLOAT(&out[i], (t_float)v);
+            SETFLOAT(&out[i], (t_float)result->values[i]);
         }
     }
 
