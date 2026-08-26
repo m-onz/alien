@@ -12,11 +12,15 @@ See [this repo for the complete toolkit](https://github.com/m-onz/alien-av-toolk
 
 ## Installation
 
+For a complete walkthrough on Linux, macOS, and Windows, see
+[INSTALL.md](INSTALL.md).
+
 ```bash
+git clone https://github.com/m-onz/alien.git
 cd alien
-make                                 # build external + CLI
-make install                         # install to ~/Documents/Pd/externals
-make install PREFIX=~/.pd-externals  # custom path
+make
+make test
+make install
 ```
 
 ## Usage
@@ -696,6 +700,66 @@ Test patterns without Pd:
 | `delay` | `seq n` | Prepend `n` rests |
 
 ---
+
+## Orchestration
+
+Two objects coordinate high-level cue launching, so alien patterns can drive
+composition changes. They store no scene data and don't evaluate patterns —
+alien generates, Pd routes, these just launch.
+
+### alien_cue — Cue Bundle
+
+```
+[alien_cue 4]
+```
+
+- Registers globally in creation order; its position (1-based) is its cue index
+- Creation arg: number of outlets (1-64, default 1)
+- When launched, bangs all outlets right-to-left
+- `bang` launches manually, `index` posts its registry position
+
+### alien_orchestrate — Cue Launcher
+
+```
+[alien_orchestrate]
+```
+
+- Floats are 1-based cue indices, wrapped over the registered cue count
+  (with 4 cues: `5` → cue 1, `0` → cue 4, `-1` → cue 3)
+- Every number retriggers — use rests to let a cue keep playing
+- Rests (`-` `.` `_`) do nothing
+- `bang` relaunches the last cue, `reset` clears it
+- `count` / `dump` post the registry to the console
+- Outlet: launched cue index (1-based) — useful for displays
+
+### Example
+
+Define cues, each a bundle of pattern messages:
+
+```
+[alien_cue 4]
+| | | |
+[; kick (euclid 4 16)]  [; snare (euclid 2 16 4)]  [; bass (seq 0 - 3 -)]  [; shader (seq 12)]
+
+[alien_cue 4]
+| | | |
+[; kick (euclid 7 16)]  [; snare (prob (euclid 3 16 4) 70)]  [; bass (drunk 16 1 3 0 7)]  [; shader (seq 31)]
+```
+
+Then drive the arrangement with an alien pattern — each step is a cue number:
+
+```
+[(seq 1 - - - 2 - - - 1 1 2 -)(
+|
+[alien]
+|
+[else/sequencer]
+|
+[alien_orchestrate]
+```
+
+Cue launches feed named aliens, so pattern changes still batch through the
+100ms sync window and switch together.
 
 ## Theme
 

@@ -44,7 +44,7 @@ CLI_CFLAGS = -Wall -Wextra -std=c99 -O2
 # Build targets
 .PHONY: all clean install test test-evo help
 
-all: alien.$(EXT) alien_wrap.$(EXT) alien_join.$(EXT) alien_snap.$(EXT) alien_scale.$(EXT) alien_parser
+all: alien.$(EXT) alien_wrap.$(EXT) alien_join.$(EXT) alien_snap.$(EXT) alien_scale.$(EXT) alien_cue.$(EXT) alien_orchestrate.$(EXT) alien_parser
 
 # Pure Data externals
 alien.$(EXT): alien.c alien_core.h
@@ -62,6 +62,12 @@ alien_snap.$(EXT): alien_snap.c alien_core.h
 alien_scale.$(EXT): alien_scale.c alien_core.h
 	$(CC) $(PD_CFLAGS) -o $@ alien_scale.c $(LDFLAGS) -lm
 
+alien_cue.$(EXT): alien_cue.c alien_orch.h
+	$(CC) $(PD_CFLAGS) -o $@ alien_cue.c $(LDFLAGS)
+
+alien_orchestrate.$(EXT): alien_orchestrate.c alien_orch.h
+	$(CC) $(PD_CFLAGS) -o $@ alien_orchestrate.c $(LDFLAGS)
+
 # Standalone CLI tools
 alien_parser: alien_parser.c alien_core.h
 	$(CC) $(CLI_CFLAGS) -o $@ alien_parser.c -lm
@@ -71,9 +77,9 @@ test: alien_parser
 	./alien_parser --test
 
 # Install Pure Data externals
-install: alien.$(EXT) alien_wrap.$(EXT) alien_snap.$(EXT) alien_scale.$(EXT)
+install: alien.$(EXT) alien_wrap.$(EXT) alien_join.$(EXT) alien_snap.$(EXT) alien_scale.$(EXT) alien_cue.$(EXT) alien_orchestrate.$(EXT)
 	mkdir -p $(PD_EXTERNALS_DIR)/alien
-	cp alien.$(EXT) alien_wrap.$(EXT) alien_join.$(EXT) alien_snap.$(EXT) alien_scale.$(EXT) $(PD_EXTERNALS_DIR)/alien/
+	cp alien.$(EXT) alien_wrap.$(EXT) alien_join.$(EXT) alien_snap.$(EXT) alien_scale.$(EXT) alien_cue.$(EXT) alien_orchestrate.$(EXT) $(PD_EXTERNALS_DIR)/alien/
 	@if [ -f examples/alien-help.pd ]; then \
 		cp examples/alien-help.pd $(PD_EXTERNALS_DIR)/alien/; \
 	elif [ -f alien-help.pd ]; then \
@@ -85,7 +91,7 @@ install: alien.$(EXT) alien_wrap.$(EXT) alien_snap.$(EXT) alien_scale.$(EXT)
 
 # Clean build artifacts
 clean:
-	rm -f alien.$(EXT) alien_wrap.$(EXT) alien_join.$(EXT) alien_snap.$(EXT) alien_scale.$(EXT) alien_parser *.o
+	rm -f alien.$(EXT) alien_wrap.$(EXT) alien_join.$(EXT) alien_snap.$(EXT) alien_scale.$(EXT) alien_cue.$(EXT) alien_orchestrate.$(EXT) alien_parser *.o
 
 # Help
 help:
