@@ -1,0 +1,11 @@
+#N canvas 30 30 640 400 12;
+#X text 28 24 [ns_quality] - domain-agnostic quality score in 0..1 for a rendered sequence;
+#X text 28 58 example: ns_quality;
+#X text 28 352 see also: alien-help.pd | ns-help.pd;
+#N canvas 480 160 540 320 META 0;
+#X text 12 12 KEYWORDS control analysis novelty-search;
+#X text 12 34 DESCRIPTION domain-agnostic quality score in 0..1 for a rendered sequence;
+#X text 12 56 AUTHOR m-onz;
+#X text 12 78 LICENSE MIT;
+#X text 12 100 VERSION 0.1.0;
+#X restore 28 392 pd META;

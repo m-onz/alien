@@ -1,0 +1,178 @@
+name: build and publish deken packages
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+env:
+  LIBNAME: alien
+  # NOTE: confirm this matches a real Pd release tag / Windows zip name on
+  # https://msp.ucsd.edu/software.html before the first tagged run.
+  PD_VERSION: "0.56-4"
+
+jobs:
+  # ── Linux: every architecture from one runner ──────────────────
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+
+      - name: Install cross toolchains
+        run: |
+          sudo apt-get update
+          for p in gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu \
+                   gcc-i686-linux-gnu gcc-powerpc64le-linux-gnu \
+                   gcc-riscv64-linux-gnu gcc-s390x-linux-gnu; do
+            sudo apt-get install -y "$p" || echo "FAILED $p"
+          done
+
+      - name: Get Pd headers
+        run: |
+          git clone --depth 1 --branch "$PD_VERSION" \
+            https://github.com/pure-data/pure-data.git pd
+
+      - name: Build all Linux architectures
+        run: |
+          set -e
+          # $1 = compiler (empty for native), $2 = deken cpu, $3 = floatsize
+          build() {
+            make clean >/dev/null 2>&1 || true
+            make install objectsdir=./build PDINCLUDEDIR=pd/src \
+              ${1:+CC=$1} floatsize=$3 extension=linux-$2-$3.so
+            echo "  ✓ linux-$2-$3"
+          }
+          # Single precision — every architecture
+          build ""                        amd64   32
+          build aarch64-linux-gnu-gcc     arm64   32
+          build arm-linux-gnueabihf-gcc   armv7   32
+          build i686-linux-gnu-gcc        i386    32
+          build powerpc64le-linux-gnu-gcc ppc64el 32
+          build riscv64-linux-gnu-gcc     riscv64 32
+          build s390x-linux-gnu-gcc       s390x   32
+          # Double precision — only where Pd64 is actually used
+          build ""                        amd64   64
+          build aarch64-linux-gnu-gcc     arm64   64
+
+      - uses: actions/upload-artifact@v4
+        with: { name: build-linux, path: build/ }
+
+  # ── macOS: universal binaries ──────────────────────────────────
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - name: Get Pd headers
+        run: |
+          git clone --depth 1 --branch "$PD_VERSION" \
+            https://github.com/pure-data/pure-data.git pd
+      - name: Build (single + double, universal)
+        run: |
+          make install objectsdir=./build PDINCLUDEDIR=pd/src \
+            arch="arm64 x86_64" extension=d_fat \
+            cflags="-mmacosx-version-min=10.13"
+          make clean
+          make install objectsdir=./build PDINCLUDEDIR=pd/src \
+            floatsize=64 arch="arm64 x86_64" extension=darwin-fat-64.so \
+            cflags="-mmacosx-version-min=10.13"
+      - uses: actions/upload-artifact@v4
+        with: { name: build-macos, path: build/ }
+
+  # ── Windows ────────────────────────────────────────────────────
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run: { shell: msys2 {0} }
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: mingw64
+          install: make mingw-w64-x86_64-gcc unzip
+      - name: Get Pd (we must link against pd.dll)
+        run: |
+          curl -L -o pd.zip "https://msp.ucsd.edu/Software/pd-${PD_VERSION}.msw.zip"
+          unzip -q pd.zip && mv "pd-${PD_VERSION}" pdwin
+      - name: Build
+        run: |
+          make install objectsdir=./build PDDIR=$(pwd)/pdwin \
+            extension=windows-amd64-32.dll
+      - uses: actions/upload-artifact@v4
+        with: { name: build-windows, path: build/ }
+
+  # ── Package: one .dek per OS, plus Sources ─────────────────────
+  package:
+    needs: [linux, macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: actions/download-artifact@v4
+        with: { path: artifacts, pattern: build-* }
+
+      - name: Install deken
+        run: |
+          mkdir -p ~/bin
+          curl -L https://raw.githubusercontent.com/pure-data/deken/main/developer/deken \
+            -o ~/bin/deken
+          chmod +x ~/bin/deken
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Assemble Sources package
+        run: |
+          mkdir -p pkg-src
+          git archive --format=tar --prefix="${LIBNAME}/" HEAD | tar -x -C pkg-src/
+          cp Makefile.pdlibbuilder "pkg-src/${LIBNAME}/"
+          test -f "pkg-src/${LIBNAME}/Makefile.pdlibbuilder"
+
+      - name: Build one package per OS
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          for os in linux macos windows; do
+            mkdir -p "pkg-$os"
+            cp -a "artifacts/build-$os/." "pkg-$os/"
+            ( cd "pkg-$os" && deken package --version "$VERSION" "$LIBNAME" )
+          done
+          ( cd pkg-src && deken package --version "$VERSION" "$LIBNAME" )
+
+      - name: Report — CHECK THIS BEFORE TRUSTING THE UPLOAD
+        run: |
+          echo "── produced packages ──"
+          for f in pkg-*/*.dek; do
+            printf '%3d chars  %7s  %s\n' \
+              "$(basename "$f" | wc -c)" "$(du -h "$f" | cut -f1)" "$(basename "$f")"
+          done
+          echo
+          echo "── object list ──"
+          cat pkg-linux/*.dek.txt
+
+      - name: Fail if any filename is dangerously long
+        run: |
+          for f in pkg-*/*.dek; do
+            len=$(basename "$f" | wc -c)
+            if [ "$len" -gt 200 ]; then
+              echo "::error::$(basename "$f") is $len chars — approaching the 255 limit"
+              exit 1
+            fi
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deken-packages
+          path: pkg-*/*.dek*
+
+      # For your first few releases, comment this step out: download the
+      # deken-packages artifact, inspect filenames + object list, install
+      # locally, then upload by hand. Enable auto-upload once you trust it.
+      #
+      # Sources FIRST — deken refuses binary uploads without them.
+      - name: Upload to puredata.info
+        env:
+          DEKEN_USERNAME: ${{ secrets.DEKEN_USERNAME }}
+          DEKEN_PASSWORD: ${{ secrets.DEKEN_PASSWORD }}
+        run: |
+          deken upload pkg-src/*.dek
+          deken upload pkg-linux/*.dek pkg-macos/*.dek pkg-windows/*.dek

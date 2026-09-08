@@ -24,6 +24,7 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <limits.h>
+#include <stdint.h>
 #include <time.h>
 #include <math.h>
 
@@ -168,7 +169,7 @@ static void init_random(void) {
     if (!g_random_initialized) {
         unsigned int seed = (unsigned int)time(NULL);
         seed ^= (unsigned int)clock();
-        seed ^= (unsigned int)(unsigned long)&seed;
+        seed ^= (unsigned int)(uintptr_t)&seed;
         srand(seed);
         g_random_initialized = true;
     }

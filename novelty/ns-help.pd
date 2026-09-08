@@ -65,6 +65,14 @@
 #X obj 720 700 print blocked;
 #X text 880 670 score-hi \, score-lo \, payload (cold right);
 #X text 30 720 (see ns_alien_evo2.pd for AST-level evolution \; ns_4x4.pd for the canonical demo.);
+#N canvas 480 160 540 320 META 0;
+#X text 12 12 KEYWORDS control novelty-search analysis;
+#X text 12 34 DESCRIPTION overview patch for the ns_* novelty-search externals;
+#X text 12 56 AUTHOR m-onz;
+#X text 12 78 LICENSE MIT;
+#X text 12 100 WEBSITE https://github.com/m-onz/alien;
+#X text 12 122 VERSION 0.1.0;
+#X restore 30 745 pd META;
 #X connect 4 0 20 0;
 #X connect 6 0 20 0;
 #X connect 8 0 20 0;

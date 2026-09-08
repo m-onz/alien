@@ -1,116 +1,66 @@
-# Makefile for alien - Lisp pattern language for Pure Data
-# Builds both Pure Data external and standalone CLI tool
+#!/usr/bin/make -f
+# Makefile for the 'alien' library for Pure Data.
+# Uses pd-lib-builder: https://github.com/pure-data/pd-lib-builder
 
-# Allow user to override installation directory
-# Usage: make install PREFIX=/custom/path
-PREFIX ?=
+lib.name = alien
 
-# Platform detection
-UNAME := $(shell uname -s)
-ifeq ($(UNAME),Darwin)
-    EXT = pd_darwin
-    ARCH_FLAGS = -arch x86_64 -arch arm64
-    LDFLAGS = -bundle -undefined dynamic_lookup
-    DEFAULT_PD_DIR = ~/Documents/Pd/externals
-endif
-ifeq ($(UNAME),Linux)
-    EXT = pd_linux
-    ARCH_FLAGS = -fPIC
-    LDFLAGS = -shared
-    DEFAULT_PD_DIR = ~/.local/lib/pd/extra
-endif
-ifeq ($(OS),Windows_NT)
-    EXT = dll
-    ARCH_FLAGS =
-    LDFLAGS = -shared
-    DEFAULT_PD_DIR = $(APPDATA)/Pd
-endif
+# Class name == source file basename. Sources may live in subdirectories;
+# pd-lib-builder still emits every binary flat in the repo root, which is
+# exactly what a deken package wants. The standalone CLI tools
+# (alien_parser.c, novelty/ns_parser.c, novelty/ns_system_test.c,
+# novelty/validate_seeds.c) are NOT Pd externals and are intentionally
+# excluded from this build.
+class.sources = \
+    alien.c \
+    alien_wrap.c \
+    alien_join.c \
+    alien_snap.c \
+    alien_scale.c \
+    alien_cue.c \
+    alien_orchestrate.c \
+    novelty/ns_archive.c \
+    novelty/ns_mutate.c \
+    novelty/ns_log.c \
+    novelty/ns_grid_stats.c \
+    novelty/ns_spigot.c \
+    novelty/ns_seq_features.c \
+    novelty/ns_seq_propose.c \
+    novelty/ns_seq_info.c \
+    novelty/ns_quality.c \
+    novelty/ns_corpus.c \
+    novelty/ns_ast_features.c
 
-# Use PREFIX if set, otherwise use default
-ifeq ($(PREFIX),)
-    PD_EXTERNALS_DIR = $(DEFAULT_PD_DIR)
-else
-    PD_EXTERNALS_DIR = $(PREFIX)
-endif
+# Installed FLAT into the package root. Help patches MUST be here (not in a
+# subfolder) or deken will not find them when building the object list.
+datafiles = \
+    alien-meta.pd \
+    alien-help.pd \
+    alien_wrap-help.pd \
+    alien_join-help.pd \
+    alien_snap-help.pd \
+    alien_scale-help.pd \
+    alien_cue-help.pd \
+    alien_orchestrate-help.pd \
+    ns_archive-help.pd \
+    ns_mutate-help.pd \
+    ns_log-help.pd \
+    ns_grid_stats-help.pd \
+    ns_spigot-help.pd \
+    ns_seq_features-help.pd \
+    ns_seq_propose-help.pd \
+    ns_seq_info-help.pd \
+    ns_quality-help.pd \
+    ns_corpus-help.pd \
+    ns_ast_features-help.pd \
+    novelty/ns-help.pd \
+    pkg-tester.pd \
+    README.md \
+    LICENSE \
+    alien.png
 
-# Compiler and flags
-CC = gcc
-PD_INCLUDES = -I/usr/local/include -I/Applications/Pd-0.56-1.app/Contents/Resources/src
-WARNINGS = -Wall -W -Wno-unused -Wno-parentheses -Wno-switch
-OPTFLAGS = -O3 -funroll-loops -fomit-frame-pointer
-PD_CFLAGS = $(ARCH_FLAGS) $(PD_INCLUDES) $(WARNINGS) $(OPTFLAGS) -DPD
-CLI_CFLAGS = -Wall -Wextra -std=c99 -O2
-
-# Build targets
-.PHONY: all clean install test test-evo help
-
-all: alien.$(EXT) alien_wrap.$(EXT) alien_join.$(EXT) alien_snap.$(EXT) alien_scale.$(EXT) alien_cue.$(EXT) alien_orchestrate.$(EXT) alien_parser
-
-# Pure Data externals
-alien.$(EXT): alien.c alien_core.h
-	$(CC) $(PD_CFLAGS) -o $@ alien.c $(LDFLAGS) -lm
-
-alien_wrap.$(EXT): alien_wrap.c
-	$(CC) $(PD_CFLAGS) -o $@ alien_wrap.c $(LDFLAGS)
-
-alien_join.$(EXT): alien_join.c
-	$(CC) $(PD_CFLAGS) -o $@ alien_join.c $(LDFLAGS)
-
-alien_snap.$(EXT): alien_snap.c alien_core.h
-	$(CC) $(PD_CFLAGS) -o $@ alien_snap.c $(LDFLAGS) -lm
-
-alien_scale.$(EXT): alien_scale.c alien_core.h
-	$(CC) $(PD_CFLAGS) -o $@ alien_scale.c $(LDFLAGS) -lm
-
-alien_cue.$(EXT): alien_cue.c alien_orch.h
-	$(CC) $(PD_CFLAGS) -o $@ alien_cue.c $(LDFLAGS)
-
-alien_orchestrate.$(EXT): alien_orchestrate.c alien_orch.h
-	$(CC) $(PD_CFLAGS) -o $@ alien_orchestrate.c $(LDFLAGS)
-
-# Standalone CLI tools
-alien_parser: alien_parser.c alien_core.h
-	$(CC) $(CLI_CFLAGS) -o $@ alien_parser.c -lm
-
-# Run tests
-test: alien_parser
-	./alien_parser --test
-
-# Install Pure Data externals
-install: alien.$(EXT) alien_wrap.$(EXT) alien_join.$(EXT) alien_snap.$(EXT) alien_scale.$(EXT) alien_cue.$(EXT) alien_orchestrate.$(EXT)
-	mkdir -p $(PD_EXTERNALS_DIR)/alien
-	cp alien.$(EXT) alien_wrap.$(EXT) alien_join.$(EXT) alien_snap.$(EXT) alien_scale.$(EXT) alien_cue.$(EXT) alien_orchestrate.$(EXT) $(PD_EXTERNALS_DIR)/alien/
-	@if [ -f examples/alien-help.pd ]; then \
-		cp examples/alien-help.pd $(PD_EXTERNALS_DIR)/alien/; \
-	elif [ -f alien-help.pd ]; then \
-		cp alien-help.pd $(PD_EXTERNALS_DIR)/alien/; \
-	else \
-		echo "Warning: alien-help.pd not found, skipping"; \
-	fi
-	@echo "Installed to $(PD_EXTERNALS_DIR)/alien"
-
-# Clean build artifacts
-clean:
-	rm -f alien.$(EXT) alien_wrap.$(EXT) alien_join.$(EXT) alien_snap.$(EXT) alien_scale.$(EXT) alien_cue.$(EXT) alien_orchestrate.$(EXT) alien_parser *.o
-
-# Help
-help:
-	@echo "alien - Lisp pattern language for Pure Data"
-	@echo ""
-	@echo "Targets:"
-	@echo "  make                 - Build all PD externals and CLI tools"
-	@echo "  make alien.$(EXT)     - Build main PD external only"
-	@echo "  make alien_parser    - Build pattern CLI tool"
-	@echo "  make test            - Run pattern test suite"
-	@echo "  make install         - Install PD externals to $(PD_EXTERNALS_DIR)"
-	@echo "  make clean           - Remove build artifacts"
-	@echo ""
-	@echo "Installation Options:"
-	@echo "  PREFIX=/path      - Custom installation directory"
-	@echo "  Example: make install PREFIX=~/.pd-externals"
-	@echo "  Default: $(DEFAULT_PD_DIR)"
-	@echo ""
-	@echo "CLI Usage (alien_parser):"
-	@echo "  ./alien_parser '(euclid 5 8)'"
-	@echo "  echo '(seq 1 2 3)' | ./alien_parser"
-	@echo "  ./alien_parser --test"
+# Prefer the git submodule; fall back to the vendored copy so that source
+# tarballs and the deken (Sources) package still build.
+PDLIBBUILDER = $(firstword $(wildcard \
+    pd-lib-builder/Makefile.pdlibbuilder \
+    Makefile.pdlibbuilder))
+include $(PDLIBBUILDER)

@@ -1,0 +1,11 @@
+#N canvas 30 30 640 400 12;
+#X text 28 24 [alien_scale] - requantize every note in a pattern list to the nearest scale tone;
+#X text 28 58 example: alien_scale 0 2 4 5 7 9 11;
+#X text 28 352 see also: alien-help.pd | ns-help.pd;
+#N canvas 480 160 540 320 META 0;
+#X text 12 12 KEYWORDS control pitch scale;
+#X text 12 34 DESCRIPTION requantize every note in a pattern list to the nearest scale tone;
+#X text 12 56 AUTHOR m-onz;
+#X text 12 78 LICENSE MIT;
+#X text 12 100 VERSION 0.1.0;
+#X restore 28 392 pd META;

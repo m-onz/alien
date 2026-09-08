@@ -1,13 +1,25 @@
 # Build artifacts
 *.pd_darwin
 *.pd_linux
+*.pd_freebsd
+*.so
 *.dll
+*.d_fat
 *.o
 alien_parser
 seqgen
 novelty/ns_parser
 novelty/ns_system_test
 novelty/validate_seeds
+
+# deken / CI build + package output
+/build/
+/pd/
+/pkg-*/
+*.dek
+*.dek.txt
+*.dek.sha256
+*.dek.asc
 
 # macOS
 .DS_Store

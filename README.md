@@ -12,16 +12,26 @@ See [this repo for the complete toolkit](https://github.com/m-onz/alien-av-toolk
 
 ## Installation
 
-For a complete walkthrough on Linux, macOS, and Windows, see
-[INSTALL.md](INSTALL.md).
+### Via Pd's package manager (recommended — no compiler needed)
+
+In Pd: **Tools → Find externals**, then search for and install **`alien`**.
+Optionally also install **`alien-theme-plugin`** for the dark canvas theme
+(*restart Pd after installing it*).
+
+### From source
+
+Uses [pd-lib-builder](https://github.com/pure-data/pd-lib-builder). For a complete
+walkthrough on Linux, macOS, and Windows, see [INSTALL.md](INSTALL.md).
 
 ```bash
-git clone https://github.com/m-onz/alien.git
+git clone --recurse-submodules https://github.com/m-onz/alien.git
 cd alien
 make
-make test
-make install
+make install objectsdir=~/Documents/Pd/externals
 ```
+
+To load-test a build, open `pkg-tester.pd` and check the Pd console for creation
+errors — every object should appear with a solid border.
 
 ## Usage
 

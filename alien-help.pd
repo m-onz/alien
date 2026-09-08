@@ -14,6 +14,14 @@
 #X floatatom 479 471 5 0 0 0 - - - 0;
 #X obj 188 126 metro 1111;
 #X obj 547 246 loadbang;
+#N canvas 480 160 540 320 META 0;
+#X text 12 12 KEYWORDS control pattern algorithmic;
+#X text 12 34 DESCRIPTION entangled Lisp-like pattern evaluator - expression in sequence list out;
+#X text 12 56 AUTHOR m-onz;
+#X text 12 78 LICENSE MIT;
+#X text 12 100 WEBSITE https://github.com/m-onz/alien;
+#X text 12 122 VERSION 0.1.0;
+#X restore 20 540 pd META;
 #X connect 0 0 13 0;
 #X connect 1 0 6 1;
 #X connect 2 0 7 1;
