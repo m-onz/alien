@@ -84,7 +84,8 @@ jobs:
   windows:
     runs-on: windows-latest
     defaults:
-      run: { shell: msys2 {0} }
+      run:
+        shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
         with: { submodules: recursive }
