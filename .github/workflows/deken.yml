@@ -10,6 +10,9 @@ env:
   # NOTE: confirm this matches a real Pd release tag / Windows zip name on
   # https://msp.ucsd.edu/software.html before the first tagged run.
   PD_VERSION: "0.56-4"
+  # deken's hylang payload (deken.hy) lives on the 'master' branch; the default
+  # 'main' 404s during self-install. This pins both the wrapper and its payload.
+  DEKEN_GIT_BRANCH: master
 
 jobs:
   # ── Linux: every architecture from one runner ──────────────────
@@ -117,7 +120,7 @@ jobs:
       - name: Install deken
         run: |
           mkdir -p ~/bin
-          curl -L https://raw.githubusercontent.com/pure-data/deken/main/developer/deken \
+          curl -L "https://raw.githubusercontent.com/pure-data/deken/${DEKEN_GIT_BRANCH}/developer/deken" \
             -o ~/bin/deken
           chmod +x ~/bin/deken
           echo "$HOME/bin" >> "$GITHUB_PATH"
