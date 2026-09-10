@@ -90,14 +90,17 @@ make install
 By default this installs to:
 
 ```text
-~/.local/lib/pd/extra/alien
+~/Documents/Pd/externals/alien
 ```
 
 To install somewhere else:
 
 ```bash
-make install PREFIX="$HOME/Documents/Pd/externals"
+make install objectsdir="$HOME/.local/lib/pd/extra"
 ```
+
+Do not use `sudo` for a home-directory install: `sudo` sets `HOME=/var/root`,
+so the files end up in root's home instead of yours.
 
 ## macOS
 
@@ -148,8 +151,12 @@ By default this installs to:
 To install somewhere else:
 
 ```bash
-make install PREFIX="$HOME/Documents/Pd/externals"
+make install objectsdir="$HOME/Library/Pd"
 ```
+
+Do not use `sudo`: it sets `HOME=/var/root`, so the objects land in
+`/var/root/Library/Pd/alien` where Pd (and you) will never see them. A
+home-directory install needs no root.
 
 ## Windows
 
@@ -213,16 +220,17 @@ Pd source headers into a simple path and point `PD_INCLUDES` at that path.
 make install PD_INCLUDES=-IC:/Pd/src
 ```
 
-By default this installs to:
+By default this installs to (inside your MSYS2 home):
 
 ```text
-%APPDATA%\Pd\alien
+~/Documents/Pd/externals/alien
 ```
 
-You can choose a different Pd externals folder with `PREFIX`:
+You can choose a different Pd externals folder with `objectsdir`, for example
+the standard Windows location:
 
 ```bash
-make install PD_INCLUDES=-IC:/Pd/src PREFIX="$HOME/Documents/Pd/externals"
+make install PD_INCLUDES=-IC:/Pd/src objectsdir="$APPDATA/Pd"
 ```
 
 ## Loading alien in Pure Data

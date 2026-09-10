@@ -4,6 +4,15 @@
 
 lib.name = alien
 
+# Default install destination for a bare `make install`. pd-lib-builder's
+# per-platform default (e.g. ~/Library/Pd on macOS, /usr/local/lib/pd-externals
+# on Linux) is not where most users keep their patches, so point at the common
+# ~/Documents/Pd/externals folder instead. This is only a default: an
+# `objectsdir` passed on the command line (as the CI does with
+# `objectsdir=./build`) always overrides it. Do NOT use `sudo` for this — sudo
+# sets HOME=/var/root and the files land in root's home instead of yours.
+objectsdir ?= $(HOME)/Documents/Pd/externals
+
 # Class name == source file basename. Sources may live in subdirectories;
 # pd-lib-builder still emits every binary flat in the repo root, which is
 # exactly what a deken package wants. The standalone CLI tools
@@ -53,6 +62,7 @@ datafiles = \
     ns_corpus-help.pd \
     ns_ast_features-help.pd \
     novelty/ns-help.pd \
+    novelty/novelty_engine.pd \
     pkg-tester.pd \
     README.md \
     LICENSE \
