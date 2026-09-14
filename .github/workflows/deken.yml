@@ -176,5 +176,11 @@ jobs:
           DEKEN_USERNAME: ${{ secrets.DEKEN_USERNAME }}
           DEKEN_PASSWORD: ${{ secrets.DEKEN_PASSWORD }}
         run: |
-          deken upload pkg-src/*.dek
+          # On a fresh install deken patches the 'easywebdav2' module on its
+          # first upload call, then exits non-zero ("Please re-run your
+          # command!") WITHOUT uploading. The `|| deken upload ...` retry runs
+          # the real upload after the patch. If the patch isn't needed, the
+          # first call succeeds and `||` short-circuits — no double upload.
+          # Sources FIRST — deken refuses binary uploads without them.
+          deken upload pkg-src/*.dek || deken upload pkg-src/*.dek
           deken upload pkg-linux/*.dek pkg-macos/*.dek pkg-windows/*.dek
