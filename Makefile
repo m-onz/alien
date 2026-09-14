@@ -63,6 +63,7 @@ datafiles = \
     ns_ast_features-help.pd \
     novelty/ns-help.pd \
     novelty/novelty_engine.pd \
+    novelty/seeds.txt \
     pkg-tester.pd \
     README.md \
     LICENSE \

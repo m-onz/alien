@@ -312,6 +312,7 @@ struct _ns_corpus {
     t_outlet *x_out_left;     /* sampled parent / pair message */
     t_outlet *x_out_right;    /* event stream */
     t_symbol *x_name;         /* NULL = anonymous */
+    t_canvas *x_canvas;       /* patch dir, for resolving relative seed paths */
     ns_corpus_t *x_corpus;
     char x_staged[NS_CORPUS_EXPR_MAX];   /* per-instance staging */
     int x_has_staged;
@@ -614,7 +615,24 @@ static void proxy_seeds(t_ns_corpus_proxy *p, t_symbol *s) {
         pd_error(x, "ns_corpus: seeds needs a path");
         return;
     }
-    FILE *f = fopen(s->s_name, "r");
+    /* Resolve the path. A relative name (the portable form used by the shipped
+     * patches, e.g. "seeds.txt") is looked up against the patch's own directory
+     * and Pd's search path via canvas_open, so it works wherever the library is
+     * installed. An absolute path is opened directly. */
+    FILE *f = NULL;
+    if (s->s_name[0] == '/' && x->x_canvas) {
+        f = fopen(s->s_name, "r");
+    } else if (x->x_canvas) {
+        char dirbuf[MAXPDSTRING], *nameptr;
+        int fd = canvas_open(x->x_canvas, s->s_name, "",
+                             dirbuf, &nameptr, MAXPDSTRING, 0);
+        if (fd >= 0) {
+            f = fdopen(fd, "r");
+            if (!f) sys_close(fd);
+        }
+    } else {
+        f = fopen(s->s_name, "r");
+    }
     if (!f) {
         pd_error(x, "ns_corpus: cannot open seeds file: %s", s->s_name);
         return;
@@ -777,6 +795,7 @@ static void *ns_corpus_new(t_symbol *s, int argc, t_atom *argv) {
     int cap = NS_CORPUS_DEFAULT_CAP;
     int ai = 0;
     x->x_name = NULL;
+    x->x_canvas = canvas_getcurrent();   /* for relative seed-path resolution */
 
     /* Optional first arg: name (symbol). Optional second: capacity. */
     if (argc > ai && argv[ai].a_type == A_SYMBOL) {

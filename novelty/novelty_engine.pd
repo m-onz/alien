@@ -1,6 +1,6 @@
 #N canvas 697 48 1400 880 12;
 #X obj 30 170 loadbang;
-#X msg 30 200 seeds /Users/monz/Desktop/gf/alien/novelty/seeds.txt;
+#X msg 30 200 seeds seeds.txt;
 #X obj 30 260 bng 22 250 50 0 empty empty tick 0 -10 0 12 #fcfcfc #000000 #000000;
 #X obj 30 370 ns_seq_propose mutate 0.3;
 #X obj 30 420 t a a a a;
