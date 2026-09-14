@@ -183,4 +183,9 @@ jobs:
           # first call succeeds and `||` short-circuits — no double upload.
           # Sources FIRST — deken refuses binary uploads without them.
           deken upload pkg-src/*.dek || deken upload pkg-src/*.dek
-          deken upload pkg-linux/*.dek pkg-macos/*.dek pkg-windows/*.dek
+          # The binary upload re-checks the server for matching sources, but the
+          # sources we JUST uploaded can take up to 24h to index — so that check
+          # spuriously fails with "Missing sources". We did provide sources this
+          # run, so --no-source-error is the correct, deken-sanctioned override.
+          deken upload --no-source-error \
+            pkg-linux/*.dek pkg-macos/*.dek pkg-windows/*.dek
