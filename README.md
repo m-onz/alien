@@ -18,6 +18,13 @@ In Pd: **Tools → Find externals**, then search for and install **`alien`**.
 Optionally also install **`alien-theme-plugin`** for the dark canvas theme
 (*restart Pd after installing it*).
 
+## Themes
+
+There are two themes available:
+
+* alien-theme--plugin - opaque background
+* alien-theme-overlay-plugin - transparent background so you can overlay on a GEM window
+
 ### From source
 
 Uses [pd-lib-builder](https://github.com/pure-data/pd-lib-builder). For a complete
