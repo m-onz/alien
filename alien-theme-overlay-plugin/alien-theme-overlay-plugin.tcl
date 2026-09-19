@@ -23,6 +23,12 @@ namespace eval ::alien_theme_overlay {
     variable color_insert white
     variable color_sel #7760ff
 
+    # remember which toplevels we have already made transparent so we never
+    # toggle -transparent on the same window twice (repeated toggling of
+    # per-pixel transparency is what destabilises the Aqua compositor).
+    variable transparent_done
+    array set transparent_done {}
+
     proc post {msg} {
         if {[catch {::pdwindow::post "alien-theme-overlay: $msg\n"}]} {
             catch {puts stderr "alien-theme-overlay: $msg"}
@@ -132,9 +138,20 @@ namespace eval ::alien_theme_overlay {
         }
     }
 
-    # transparent canvas background so the GEM window behind shows through
-    proc make_transparent {top canv} {
+    # Actually apply the transparency, once the window is realised. Only ever
+    # runs one time per toplevel (guarded by transparent_done).
+    proc apply_transparent {top canv} {
         variable color_bg
+        variable transparent_done
+
+        # window may have been closed between scheduling and now
+        if {![winfo exists $top] || ![winfo exists $canv]} {
+            catch {unset transparent_done($top)}
+            return
+        }
+        if {[info exists transparent_done($top)]} { return }
+        set transparent_done($top) 1
+
         if {$::windowingsystem eq "aqua"} {
             catch {wm attributes $top -transparent 1}
             catch {$top configure -background systemTransparent}
@@ -144,6 +161,25 @@ namespace eval ::alien_theme_overlay {
             catch {$canv configure -background $color_bg}
         }
         catch {wm attributes $top -topmost 1}
+    }
+
+    # transparent canvas background so the GEM window behind shows through.
+    # Defer to an idle callback so Pd has finished building the toplevel before
+    # we touch its native window attributes - doing this synchronously inside
+    # the pdtk_canvas_new trace crashes the Aqua compositor.
+    proc make_transparent {top canv} {
+        variable transparent_done
+        if {[info exists transparent_done($top)]} { return }
+        after idle [namespace code [list apply_transparent $top $canv]]
+    }
+
+    # forget closed windows so re-opening a patch re-applies cleanly. The
+    # <Destroy> bind also fires for descendant widgets, so only act when the
+    # toplevel itself is going away.
+    proc forget_transparent {top w} {
+        variable transparent_done
+        if {$w ne $top} { return }
+        catch {unset transparent_done($top)}
     }
 
     proc canvas_created {cmd code result op} {
@@ -157,6 +193,7 @@ namespace eval ::alien_theme_overlay {
         $canv configure -selectbackground $color_hl_bg
         $canv configure -insertbackground $color_insert
         make_transparent $container $canv
+        bind $container <Destroy> [namespace code [list forget_transparent $container %W]]
         trace add execution $canv leave [namespace code canvas_trace]
     }
 
